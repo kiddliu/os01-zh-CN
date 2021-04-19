@@ -199,7 +199,7 @@ n是数字1，2，3或是4。H = 高电压；L = 低电压；X = 任意
 
 图2.3.4 用四个74HC00元器件组成的４位或芯片
 
-![数学是所有层次的通用语言](https://github.com/kiddliu/os01-zh-CN/raw/master/images/02/4-bit-or-gate-layout.png)
+![用四个74HC00元器件组成的４位或芯片](https://github.com/kiddliu/os01-zh-CN/raw/main/images/02/4-bit-or-gate-layout.png)
 
 ### 2.3.2 汇编语言
 
@@ -316,7 +316,7 @@ n是数字1，2，3或是4。H = 高电压；L = 低电压；X = 任意
 
 图2.4.1 数学是所有层次的通用语言。因为所有层次都可以用数学表达它们的技术，于是每一层都可以翻译到另一层去。
 
-![数学是所有层次的通用语言](https://github.com/kiddliu/os01-zh-CN/raw/master/images/02/layer_translation.png)
+![数学是所有层次的通用语言](https://github.com/kiddliu/os01-zh-CN/raw/main/images/02/layer_translation.png)
 
 ### 2.4.2 为什么抽象可以减少复杂度
 
