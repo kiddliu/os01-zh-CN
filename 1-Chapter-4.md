@@ -50,101 +50,59 @@ $ objdump -M i386,intel -D hello | less
 
 `-M i386`告诉`objdump`用32位布局显示汇编内容。理解32位与64位的差异对于编写内核代码至关重要。我们会在稍后编写我们自己的内核时检视这个问题。
 
+## 4.2 读取输出
 
+输出首先显示的是对象文件的文件格式信息：
 
-  Reading the output
-
-At the start of the output displays the file format of the object 
-file:
-
+```
 hello: file format elf64-x86-64
+```
 
-After the line is a series of disassembled sections:
+之后是一系列的反汇编节：
 
+```
 Disassembly of section .interp:
-
 ...
-
 Disassembly of section .note.ABI-tag:
-
 ...
-
 Disassembly of section .note.gnu.build-id:
-
 ...
-
 ...
+```
 
-etc
+等等。
 
-Finally, each disassembled section displays its actual content - 
-which is a sequence of assembly instructions - with the following 
-format:
+最后，每一反汇编节会显示它的实际内容：按下列格式排列的一系列汇编指令。
 
+```assembly
 4004d6:       55                      push   rbp
+```
 
-• The first column is the address of an assembly instruction. In 
-  the above example, the address is 0x4004d6.
+* 第一列是汇编指令的地址。在上边的例子里，这个地址是`0x4004d6`。
+* 第二列是以原始十六进制值表示的汇编指令。在上边的例子里，这个值是`0x4004d6`。
+* 第三列是这条汇编指令。根据当前的节信息，这条汇编指令可能有意义，也可能没有意义。举个例子，如果这条汇编指令在`.text`节，那么这些汇编指令就是实际的程序代码。而如果这些汇编指令在`.data`节，我们就可以放心地忽略这些指令。背后的原因是`objdump`不知道哪些十六进制值是代码，哪些是数据，于是不加区分地把每一个十六进制值都翻译成了汇编指令。在上边地例子里，这个汇编指令是`push %rbp`。
+* 可选的第四列是注释，告知地址的来源。注释只有在有引用指向这个地址时才会出现。比如说，下边蓝色的注释：
+  
+  ```assembly
+  lea   r12, [rip + 0x2008ee]   #600e10 <__frame_dummy_init_array_entry>
+  ```
 
-• The second column is assembly instruction in raw hex values. In 
-  the above example, the address is 0x55.
+  就是用来告知从`[rip + 0x2008ee]`指向的地址是`0x600e10`，保存着`__frame_dummy_init_array_entry`变量。
 
-• The third column is the assembly instruction. Depends on the 
-  section, the assembly instruction might be meaningful or 
-  meaningless. For example, if the assembly instructions are in a 
-  .text section, then the assembly instructions are actual 
-  program code. On the other hand, if the assembly instructions 
-  are displayed in a .data section, then we can safely ignore the 
-  displayed instructions. The reason is that objdump doesn't know 
-  which hex values are code and which are data, so it blindly 
-  translates every hex values into assembly instructions. In the 
-  above example, the assembly instruction is push %rbp. 
+在反编译节中也会包含*标签*。标签是一条汇编指令人为加上的名字。为了方便人们理解，这个标签标记了一个汇编代码块的目的。比如说，`.text`节包含了许多这样的便签，标记了程序代码从哪里开始；下面的`.text`节包含了两个函数：`_start`和`deregister_tm_clones`。`_start`函数从地址`4003e0`开始，这个值被标记在函数名的左边。`_start`标签正下方的指令也位于地址`4003e0`。整体来看，这意味着标签只是内存地址的一个名字。函数`deregister_tm_clones`也有着同样的格式，就好像这一节里其它的函数一样。
 
-• The optional fourth column is a comment - appears when there is 
-  a reference to an address - to inform where the address 
-  originates. For example, the comment in blue:
-
-      lea    r12,[rip+0x2008ee]        # 600e10 
-  <__frame_dummy_init_array_entry>
-
-  is to inform that the referenced address from [rip+0x2008ee] is 
-  0x600e10, where the variable __frame_dummy_init_array_entry 
-  resides.
-
-In a disassembled section, it may also contain labels. A label is 
-a name given to an assembly instruction. The label denotes the 
-purpose of an assembly block to a human reader, to make it easier 
-to understand. For example, .text section carries many of such 
-labels to denote where code in a program start; .text section 
-below carries two functions: _start and deregister_tm_clones. The 
-_start function starts at address 4003e0, is annotated to the 
-left of the function name. Right below _start label is also the 
-instruction at address 4003e0. This whole thing means that a 
-label is simply a name of a memory address. The function 
-deregister_tm_clones also shares the same format as every 
-function in the section.
-
+```assembly
 00000000004003e0 <_start>:
-
   4003e0:       31 ed                   xor    ebp,ebp
-
   4003e2:       49 89 d1                mov    r9,rdx
-
   4003e5:       5e                      pop    rsi
-
 ...more assembly code....
-
-
-
 0000000000400410 <deregister_tm_clones>:
-
   400410:       b8 3f 10 60 00          mov    eax,0x60103f
-
   400415:       55                      push   rbp
-
   400416:       48 2d 38 10 60 00       sub    rax,0x601038
-
 ...more assembly code....
+```
 
   Intel manuals
 
