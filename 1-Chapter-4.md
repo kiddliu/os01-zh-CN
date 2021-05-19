@@ -104,42 +104,18 @@ Disassembly of section .note.gnu.build-id:
 ...more assembly code....
 ```
 
-  Intel manuals
+## 4.3 英特尔手册
 
-The best way to understand and use assembly language properly is 
-to understand precisely the underlying computer architecture and 
-what each machine instruction does. To do so, the most reliable 
-source is to refer to documents provided by vendors. After all, 
-hardware vendors are the one who made their machines. To 
-understand Intel's instruction set, we need the document “Intel 
-64 and IA-32 architectures software developer's manual combined 
-volumes 2A, 2B, 2C, and 2D: Instruction set reference, A-Z”. The 
-document can be retrieved here: https://software.intel.com/en-us/articles/intel-sdm
-.
+恰当地理解、使用汇编语言的最佳方式就是准确地理解底层计算机架构以及每一条机器指令。要做到这一点，最可靠的信息来源就是厂商提供的文档。毕竟，是硬件厂商生产了这些硬件设备。要理解英特尔的指令集，我们需要文档《英特尔® 64 位和IA-32 架构开发人员手册2A、2B、2C和2D合订本：指令集参考，A到Z》。文档可以在这里获取：<https://software.intel.com/content/www/us/en/develop/download/intel-64-and-ia-32-architectures-sdm-combined-volumes-2a-2b-2c-and-2d-instruction-set-reference-a-z.html>
 
-• Chapter 1 provides brief information about the manual, and the 
-  comment notations used in the book.
+* 第一章提供了手册的简要信息，以及书中使用的注释标记法。
+* 第二章详细介绍了汇编指令的结构，我们会在下一节对它进行研究。
+* 第三章到第五章介绍了x86_64架构每一条指令的细节。
+* 第六章详细介绍了更安全模式扩展。这一章我们不需要用它。
 
-• Chapter 2 provides an in-depth explanation of the anatomy of an 
-  assembly instruction, which we will investigate in the next 
-  section.
+《英特尔® 64 位和IA-32 架构开发人员手册第一卷：基础架构》介绍了英特尔处理器的基础架构以及编程环境。本书的第五章总结出了所有英特尔指令，并按不同的类别进行了排列。为了我们自己的操作系统，我们只需要了解列在*章节5.1*的通用指令。*第七章*会描述每个类别的目的。逐步地，我们会学习所有这些指令。
 
-• Chapter 3 - 5 provide the details of every instruction of the 
-  x86_64 architecture.
-
-• Chapter 6 provides information about safer mode extensions. We 
-  won't need to use this chapter.
-
-The first volume “Intel® 64 and IA-32 Architectures Software 
-Developer’s Manual Volume 1: Basic Architecture” describes the 
-basic architecture and programming environment of Intel 
-processors. In the book, Chapter 5 gives the summary of all Intel 
-instructions, by listing instructions into different categories. 
-We only need to learn general-purpose instructions listed chapter 
-5.1 for our OS. Chapter 7 describes the purpose of each category. 
-Gradually, we will learn all of these instructions.
-
-Read section 1.3 in volume 2, exclude sections 1.3.5 and 1.3.7.
+习题 4.3.1 阅读第二卷章节1.3，忽略章节1.3.5和1.3.7。
 
   Experiment with assembly code 
 
