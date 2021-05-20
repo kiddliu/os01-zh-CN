@@ -10,13 +10,13 @@
 
 *objdump*是一个可以显示目标文件（object files）信息的程序。稍后在调试手动链接过程中产生的不正确的布局时会很有用。现在，我们用`objdump`来检查高阶源代码是如何映射到汇编代码的。我们暂时忽略输出，首先了解如何使用这个命令。使用`objdump`是很简单的：
 
-```cmd
+```bash
 $ objdump -d hello
 ```
 
 `-d`选项只会显示可执行节的汇编内容。节是一块包含程序代码或是数据的内存。代码节可以被CPU执行，而数据节无法被执行。非可执行节，比如`.data`和`.bss`（用来存储程序数据）、调试节等等是不会显示出来的。在第五章学习可执行与可链接格式的二进制文件格式时会了解更多关于节的知识。另一方面：
 
-```cmd
+```bash
 $ objdump -D hello
 ```
 
@@ -24,19 +24,19 @@ $ objdump -D hello
 
 程序的输出太多，会超出终端屏幕的显示范围。为了方便阅读，可以把所有输出发送到`less`：
 
-```cmd
+```bash
 $ objdump -d hello | less
 ```
 
 想要把源代码与汇编混在一起方便学习，就必须用`-g`选项编译二进制文件，把源代码包含其中，然后加上`-S`选项
 
-```cmd
+```bash
 $ objdump -S hello | less
 ```
 
 `objdump`使用的默认语法是AT&T语法。想要换成熟悉的英特尔语法：
 
-```cmd
+```bash
 $ objdump -M intel -D hello | less
 ```
 
@@ -44,7 +44,7 @@ $ objdump -M intel -D hello | less
 
 最终，我们会写一个32位的内核，因此我们需要编译一个32位的二进制文件，并且在32位模式下检视它：
 
-```cmd
+```bash
 $ objdump -M i386,intel -D hello | less
 ```
 
@@ -54,7 +54,7 @@ $ objdump -M i386,intel -D hello | less
 
 输出首先显示的是对象文件的文件格式信息：
 
-```
+```bash
 hello: file format elf64-x86-64
 ```
 
@@ -117,165 +117,87 @@ Disassembly of section .note.gnu.build-id:
 
 习题 4.3.1 阅读第二卷章节1.3，忽略章节1.3.5和1.3.7。
 
-  Experiment with assembly code 
+## 4.4 体验汇编代码
 
-The subsequent sections examine the anatomy of an assembly 
-instruction. To fully understand, it is necessary to write code 
-and see the code in its actual form displayed as hex numbers. For 
-this purpose, we use nasm assembler to write a few line of 
-assembly code and see the generated code.
+接下来的章节会检视汇编指令的组成。为了充分理解它，就有必要写一些代码，然后看看它们以十六进制数字显示的实际形式。为了这个目标，我们用`nasm`汇编器来写几行汇编代码，看看生成的代码是什么样的。
 
+---
 
--------------------------------------------
+示例 4.4.1 假设我们想要看看下面这条指令生成的机器码：
 
+```assembly
+jmp eax
+```
 
-Suppose we want to see the machine code generated for this 
-instruction:
+那么，我们用编辑器，比如Emacs，构建一个新文件，写下这行代码然后保存到文件，比如`test.asm`。然后，在终端执行下面的命令：
 
-  jmp eax
+```bash
+$ nasm -f bin test.asm -o test
+```
 
-  Then, we use an editor e.g. Emacs, then create a new file, 
-  write the code and save it in a file, e.g. test.asm. Then, in 
-  the terminal, run the command: 
+`-f`选项声明了最终输出文件的文件格式，比如ELF。但是在这个例子中，格式是`bin`，意思是这个文件只是一个普通的二进制输出，没有任何额外的信息。也就是说，写出的汇编代码原汁原味的翻译成了机器代码，没有包括类似ELF文件格式一样的额外的元数据。实际上，编译之后我们可以用下面这个命令检视这个输出：
 
+```bash
+$ hd test
+```
   
+`hd`（hexdump的缩写）是以十六进制格式显示文件内容的程序。（虽然它的名字是hexdump的缩写，然而`hd`可以以其它不同的底显示内容，比如二进制）。于是得到了下面的输出：
 
-  $ nasm -f bin test.asm -o test
-
-  
-
-  -f option specifies the file format, e.g. ELF, of the final 
-  output file. But in this case, the format is bin, which means 
-  this file is just a flat binary output without any extra 
-  information. That is, the written assembly code is translated 
-  to machine code as is, without the overhead of the metadata 
-  from file format like ELF. Indeed, after compiling, we can 
-  examine the output using this command:
-
-  
-
-  $ hd test
-
-  
-
-  hd (short for hexdump) is a program that displays the content 
-  of a file in hex format[margin:
-Though its name is short for hexdump, hd can display in different 
-base, e.g. binary, other than hex. 
-]. And get the following output:
-
+```bash
   00000000  66 ff e0                          |f..|
-
   00000003
+```
 
-  The file only consists of 3 bytes: 66 ff e0, which is 
-  equivalent to the instruction jmp eax. 
+文件只包含了三个字节：`66 ff e0`，它等价于指令`jmp eax`
 
+---
 
--------------------------------------------
+示例 4.4.2 如果我们使用ELF作为文件格式：
 
+```bash
+$ nasm -f elf test.asm -o test
+```
 
+那么在有许多干扰信息的情况下学习并理解汇编指令就变得更难了：
 
+```bash
+00000000  7f 45 4c 46 01 01 01 00  00 00 00 00 00 00 00 00  |.ELF............|
+00000010  01 00 03 00 01 00 00 00  00 00 00 00 00 00 00 00  |................|
+00000020  40 00 00 00 00 00 00 00  34 00 00 00 00 00 28 00  |@.......4.....(.|
+00000030  05 00 02 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+00000040  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+*
+00000060  00 00 00 00 00 00 00 00  01 00 00 00 01 00 00 00  |................|
+00000070  06 00 00 00 00 00 00 00  10 01 00 00 02 00 00 00  |................|
+00000080  00 00 00 00 00 00 00 00  10 00 00 00 00 00 00 00  |................|
+00000090  07 00 00 00 03 00 00 00  00 00 00 00 00 00 00 00  |................|
+000000a0  20 01 00 00 21 00 00 00  00 00 00 00 00 00 00 00  | ...!...........|
+000000b0  01 00 00 00 00 00 00 00  11 00 00 00 02 00 00 00  |................|
+000000c0  00 00 00 00 00 00 00 00  50 01 00 00 30 00 00 00  |........P...0...|
+000000d0  04 00 00 00 03 00 00 00  04 00 00 00 10 00 00 00  |................|
+000000e0  19 00 00 00 03 00 00 00  00 00 00 00 00 00 00 00  |................|
+000000f0  80 01 00 00 0d 00 00 00  00 00 00 00 00 00 00 00  |................|
+00000100  01 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+00000110  ff e0 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+00000120  00 2e 74 65 78 74 00 2e  73 68 73 74 72 74 61 62  |..text..shstrtab|
+00000130  00 2e 73 79 6d 74 61 62  00 2e 73 74 72 74 61 62  |..symtab..strtab|
+00000140  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+*
+00000160  01 00 00 00 00 00 00 00  00 00 00 00 04 00 f1 ff  |................|
+00000170  00 00 00 00 00 00 00 00  00 00 00 00 03 00 01 00  |................|
+00000180  00 74 65 73 74 2e 61 73  6d 00 00 00 00 00 00 00  |.disp8-5.asm....|
+00000190
+```
 
-If we were to use elf as file format:
+因此，在这种情况下就使用普通二进制格式，指令逐条进行实验效果会更好。
 
-  
+有了这样简单的工作流，我们就做好了研究每一条汇编指令结构的准备。
 
-  $ nasm -f elf test.asm -o test
+注意：使用`bin`模式会把`nasm`默认置为16位模式。要启用生成32位代码的功能，我们必须在`nasm`源代码文件头加上下面一行：
 
-  
-
-  It would be more challenging to learn and understand assembly 
-  instructions with all the added noise[footnote:
-The output from hd.
-]:
-
-  00000000  7f 45 4c 46 01 01 01 00  00 00 00 00 00 00 00 00  
-  |.ELF............|
-
-  00000010  01 00 03 00 01 00 00 00  00 00 00 00 00 00 00 00  
-  |................|
-
-  00000020  40 00 00 00 00 00 00 00  34 00 00 00 00 00 28 00  
-  |@.......4.....(.|
-
-  00000030  05 00 02 00 00 00 00 00  00 00 00 00 00 00 00 00  
-  |................|
-
-  00000040  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  
-  |................|
-
-  *
-
-  00000060  00 00 00 00 00 00 00 00  01 00 00 00 01 00 00 00  
-  |................|
-
-  00000070  06 00 00 00 00 00 00 00  10 01 00 00 02 00 00 00  
-  |................|
-
-  00000080  00 00 00 00 00 00 00 00  10 00 00 00 00 00 00 00  
-  |................|
-
-  00000090  07 00 00 00 03 00 00 00  00 00 00 00 00 00 00 00  
-  |................|
-
-  000000a0  20 01 00 00 21 00 00 00  00 00 00 00 00 00 00 00  | 
-  ...!...........|
-
-  000000b0  01 00 00 00 00 00 00 00  11 00 00 00 02 00 00 00  
-  |................|
-
-  000000c0  00 00 00 00 00 00 00 00  50 01 00 00 30 00 00 00  
-  |........P...0...|
-
-  000000d0  04 00 00 00 03 00 00 00  04 00 00 00 10 00 00 00  
-  |................|
-
-  000000e0  19 00 00 00 03 00 00 00  00 00 00 00 00 00 00 00  
-  |................|
-
-  000000f0  80 01 00 00 0d 00 00 00  00 00 00 00 00 00 00 00  
-  |................|
-
-  00000100  01 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  
-  |................|
-
-  00000110  ff e0 00 00 00 00 00 00  00 00 00 00 00 00 00 00  
-  |................|
-
-  00000120  00 2e 74 65 78 74 00 2e  73 68 73 74 72 74 61 62  
-  |..text..shstrtab|
-
-  00000130  00 2e 73 79 6d 74 61 62  00 2e 73 74 72 74 61 62  
-  |..symtab..strtab|
-
-  00000140  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  
-  |................|
-
-  *
-
-  00000160  01 00 00 00 00 00 00 00  00 00 00 00 04 00 f1 ff  
-  |................|
-
-  00000170  00 00 00 00 00 00 00 00  00 00 00 00 03 00 01 00  
-  |................|
-
-  00000180  00 74 65 73 74 2e 61 73  6d 00 00 00 00 00 00 00  
-  |.disp8-5.asm....|
-
-  00000190
-
-  Thus, it is better just to use flat binary format in this case, 
-  to experiment instruction by instruction.
-
-With such a simple workflow, we are ready to investigate the 
-structure of every assembly instruction.
-
-Note: Using the bin format puts nasm by default into 16-bit mode. 
-To enable 32-bit code to be generated, we must add this line at 
-the beginning of an nasm source file:
-
+```assembly
 bits 32
+```
 
   Anatomy of an Assembly Instruction
 
