@@ -384,147 +384,61 @@ mov eax, 0x1234
 习题 4.5.1 阅读手册第二卷的章节2.1，获取更多细节。
 习题 4.5.2 浏览第一卷的章节5.1。阅读第一卷的第7章。如果有不理解的术语，比如分段，不要担心，因为这些术语将在后面的章节中解释，或着可以被忽略。
 
-  Understand an instruction in detail
+## 4.6 深入理解指令
 
-In the instruction reference manual (Volume 2), from chapter 3 
-onward, every x86 instruction is documented in detail. Whenever 
-the precise behavior of an instruction is needed, we always 
-consult this document first. However, before using the document, 
-we must know the writing conventions first. Every instruction has 
-the following common structure for organizing information:
+在指令参考手册（第二卷）的第三卷开始，每一条x86指令都有详细的文档记录。每当需要指令的准确行为，我们都可以先查看文档。然而在使用文档之前，首先我们必须了解文档编写的约定。每条指令在组织信息的时候都遵从下面的一般格式：
 
-  Opcode table lists all possible opcodes of an assembly 
-  instruction.
+*操作码表*列出了一条汇编指令所有可能的操作码。
 
-  Each table contains the following fields, and can have one or 
-  more rows:
+  每张表都包括下列字段，这样的行可以一行或者多行：
 
-  
-+---------------------------------------------------------------------------------------+
-  | Opcode    Instruction    Op/En    64/32-bit Mode    CPUID
-Feature flag    Description |
-  +---------------------------------------------------------------------------------------+
-  
+  | 操作码 | 指令 | Op/En | 64/32位模式 | CPUID 功能标志 | 描述 |
+  |-------|------|-------|-------------|---------------|------|
 
-  Opcode shows a unique hexadecimal number assigned to an 
-    instruction. There can be more than one opcode for an 
-    instruction, each encodes a variant of the instruction. For 
-    example, one variant requires one operand, but another 
-    requires two. In this column, there can be other notations 
-    aside from hexadecimal numbers. For example, /r indicates 
-    that the ModR/M byte of the instruction contains a reg 
-    operand and an r/m operand. The detail listing is in section 
-    3.1.1.1 and 3.1.1.2 in the Intel's manual, volume 2.
+  *操作码*是分配给一条指令的独一无二的十六进制数。每条指令可以有多个操作码，每个码都表示指令的某种变体。比如说，一种变体要求有一个操作数，但是另一种要求两个。在这一列，除了十六进制数之外还有别的标记。比如说`/r`表示指令的`ModR/M`字节包含一个`reg`操作数以及一个`r/m`操作数。更详细的列表在英特尔手册第二卷的章节3.1.1.1和3.1.1.2。
 
-  Instruction gives the syntax of the assembly instruction that a 
-    programmer can use for writing code. Aside from the mnemonic 
-    representation of the opcode, e.g. jmp, other symbols 
-    represent operands with specific properties in the 
-    instruction. For example, rel8 represents a relative address 
-    from 128 bytes before the end of the instruction to 127 bytes 
-    after the end of instruction; similarly rel16/rel32 also 
-    represents relative addresses, but with the operand size of 
-    16/32-bit instead of 8-bit like rel8. For a detailed listing, 
-    please refer to section 3.1.1.3 of volume 2.
+  *指令*给出的是程序员写代码时可以使用的汇编指令标记。除了好记的操作符标记，比如`jmp`以外，其他标记代表指令中具有特定属性的操作数。比如说，`rel8`表示从指令结束前128字节到指令结束后127字节的相对地址；类似地，`rel16`/`rel32`也表示相对地址，但是操作数大小是16/32位，而不是`rel8`的8位。更详细的列表在英特尔手册第二卷的章节3.1.1.3。
 
-  Op/En is short for Operand/Encoding. An operand encoding 
-    specifies how a ModR/M byte encodes the operands that an 
-    instruction requires. If a variant of an instruction requires 
-    operands, then an additional table named “Instruction Operand 
-    Encoding” is added for explaining the operand encoding, with 
-    the following structure:
+  *Op/En*是操作数（Operand）/编码（Encoding）的缩写。操作数编码指的是`ModR/M`字节如何编码指令所需的操作数。如果指令的变体需要操作数，那么就有额外的一张叫做“指令操作数编码”的表来解释操作数编码，结构如下：
 
-    
-+--------+------------+------------+------------+-----------+
-    | Op/En  | Operand 1  | Operand 2  | Operand 3  | Operand 4 |
-    +--------+------------+------------+------------+-----------+
-    
+  | Op/En | 操作数１ | 操作数２ | 操作数３ | 操作数４ |
+  |-------|---------|---------|----------|---------|
 
-    Most instructions require one to two operands. We make use of 
-    these instructions for our OS and skip the instructions that 
-    require three or four operands. The operands can be readable 
-    or writable or both. The symbol (r) denotes a readable 
-    operand, and (w) denotes a writable operand. For example, 
-    when Operand 1 field contains ModRM:r/m (r), it means the 
-    first operand is encoded in r/m field of ModR/M byte, and is 
-    only readable. 
+  绝大多数指令都有一到两个操作数。我们会把这些指令用于我们的操作系统，而选择忽略需要三个或者四个操作数的指令。操作数可读、可写，或者二者都支持。标记`(r)`表示可读，而`(w)`表示可写。举个例子，当`操作数１`包含`ModRM:r/m (r)`，它表示第一个操作数被编码在`ModR/M`字节的`r/m`字段，且为只读。
 
-  64/32-bit mode indicates whether the opcode sequence is 
-    supported in a 64-bit mode and possibly 32-bit mode.
+  *64/32位模式*表示操作码列是否支持64位模式以及可能的32位模式。
 
-  CPUID Feature Flag indicates a particular CPU feature 
-    must be available to enable the instruction. An instruction 
-    is invalid if a CPU does not support the required feature.[margin:
-In Linux, the command:
+  *CPUID功能标志*指出必须具备特定的CPU功能才能使用指令。如果CPU不支持必须的功能，那么指令就是非法的。（在Linux中，命令`cat /proc/cpuinfo`列出了可用的CPU，并且在`flag`字段列出了它的功能。）
 
-cat /proc/cpuinfo
+  *Compat/Leg模式* 许多指令没有*64/32位模式*字段，但是被替换为`Compat/Leg模式`，是*兼容/老旧模式*的缩写。这个模式使得64位的指令变体可以正常运行在16位或者32位模式。
 
-lists the information of available CPUs and its features in flags 
-field.
-]
+  表 4.6.1 *Compat/Leg模式*里的标记
 
-    Compat/Leg Mode Many instructions do not have this field, but 
-      instead is replaced with Compat/Leg Mode, which stands for 
-      Compatibility or Legacy Mode. This mode enables 64-bit 
-      variants of instructions to run normally in 16 or 32-bit 
-      mode. [float MarginTable:
-[MarginTable 2:
-Notations in Compat/Leg Mode
-]
+  | 标记  | 描述                                                |
+  |:------|:---------------------------------------------------|
+  | Valid | 支持。                                              |
+  | I     | 不支持。                                            |
+  | N.E.  | 64位的操作码由于与已有的32位操作码重叠的缘故，无法编码。|
 
+  *描述*简要地解释了当前一行的指令变体。
 
-+-----------+----------------------------------------------------------------------------------+
-| Notation  | Description                                                                      |
-+-----------+----------------------------------------------------------------------------------+
-+-----------+----------------------------------------------------------------------------------+
-| Valid     | Supported                                                                        |
-+-----------+----------------------------------------------------------------------------------+
-| I         | Not supported                                                                    |
-+-----------+----------------------------------------------------------------------------------+
-| N.E.      | The 64-bit opcode cannot be encoded as it overlaps with existing 
-32-bit opcode. |
-+-----------+----------------------------------------------------------------------------------+
+*描述*阐释了指令的目的，并详细解释了指令是如何工作的。
 
+*操作*实现指令的伪代码。如果描述显得含糊不清，这一节是理解一条汇编指令的第二最佳来源。
 
+*影响的标志*列出了对EFLAGS寄存器内系统标志可能造成的影响。
 
-]
+*异常*列出了指令无法正确执行时可能发生的错误。这一节对于操作系统调试来说极有价值。异常可以被划分为以下几类：
 
-  Description briefly explains the variant of an instruction in 
-    the current row.
+* 保护模式异常
+* 实地址模式异常
+* 虚拟8086模式异常
+* 浮点异常
+* SIMD浮点异常
+* 兼容模式异常
+* 64位模式异常
 
-  Description specifies the purpose of the instructions and how 
-  an instruction works in detail.
-
-  Operation is pseudo-code that implements an instruction. If a 
-  description is vague, this section is the next best source to 
-  understand an assembly instruction. The syntax is described in 
-  section 3.1.1.9 in volume 2.
-
-  Flags affected lists the possible changes to system flags in 
-  EFLAGS register. 
-
-  Exceptions list the possible errors that can occur when an 
-  instruction cannot run correctly. This section is valuable for 
-  OS debugging. Exceptions fall into one of the following 
-  categories:
-
-• Protected Mode Exceptions
-
-• Real-Address Mode Exception
-
-• Virtual-8086 Mode Exception
-
-• Floating-Point Exception
-
-• SIMD Floating-Point Exception
-
-• Compatibility Mode Exception
-
-• 64-bit Mode Exception
-
-For our OS, we only use Protected Mode Exceptions and 
-Real-Address Mode Exceptions. The details are in section 3.1.1.13 
-and 3.1.1.14, volume 2.
+对于我们的操作系统，我们指挥用到保护模式异常和实地址模式异常。它们的详细信息在手册第二卷的章节3.1.1.13和3.1.1.14。
 
   Example: jmp instruction
 
