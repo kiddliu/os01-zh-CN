@@ -440,216 +440,92 @@ mov eax, 0x1234
 
 对于我们的操作系统，我们指挥用到保护模式异常和实地址模式异常。它们的详细信息在手册第二卷的章节3.1.1.13和3.1.1.14。
 
-  Example: jmp instruction
+## 4.7 范例：`jmp`指令
 
-Let's look at our good old jmp instruction. First, the opcode 
-table:
+让我们来看看老朋友，`jmp`指令。首先是操作码表：
 
+| 操作码         | 指令         | Op/En | 64/32位模式 | CPUID 功能标志  | 描述                                                                                          |
+|---------------|--------------|-------|-------------|----------------|-----------------------------------------------------------------------------------------------|
+| EB cb         | JMP rel8     | D     | Valid       | Valid          | 短程转移，RIP = RIP + 8位位移，符号扩展至64位。                                                  |
+| E9 cw         | JMP rel16    | D     | N.S.        | Valid          | 近程相对转移，位移相对于下一条指令。在64位模式下不支持。                                           |
+| E9 cd         | JMP rel32    | D     | Valid       | Valid          | 近程相对转移，RIP = RIP + 32位位移，符号扩展至64位。                                             |
+| FF /4         | JMP r/m16    | M     | N.S.        | Valid          | 近程绝对间接转移, 地址 = 0扩展r/m16。在64位模式下不支持。                                         |
+| FF /4         | JMP r/m32    | M     | N.S.        | Valid          | 近程绝对间接转移, 地址在给定的r/m32内。在64位模式下不支持。                                       |
+| FF /4         | JMP r/m64    | M     | Valid       | N.E.           | 近程绝对间接转移, RIP = 来自寄存器或是内存的64位偏移量。                                          |
+| EA cd         | JMP ptr16:16 | D     | Inv.        | Valid          | 远程绝对转移，地址来自操作数。                                                                  |
+| EA cp         | JMP ptr16:32 | D     | Inv.        | Valid          | 远程绝对转移，地址来自操作数。                                                                  |
+| FF /5         | JMP m16:16   | D     | Valid       | Valid          | 远程绝对间接转移，地址来自m16:16。                                                              |
+| FF /5         | JMP m16:32   | D     | Valid       | Valid          | 远程绝对间接转移，地址来自m16:32。                                                              |
+| REX.W + FF /5 | JMP m16:64   | D     | Valid       | N.E.           | 远程绝对间接转移，地址来自m16:64。                                                              |
 
+每一行列出了`jmp`指令的一种变体。比如第一行的第一列的操作码是`EB cb`，对应等价的符号形式是`jmp rel8`。这里`rel8`意思是自指令结束位置起，128个字节的偏移量。指令的结束位置，即指令最后一个字节之后的那个字节。为了更具体一些，我们来看看下边这段汇编代码：
 
-
-+-----------------+---------------+----------+--------------+------------------+------------------------------------------------------------------------------------------------+
-| Opcode          | Instruction   | Op/
-
-En  | 64-bit Mode  | Compat/Leg Mode  | Description                                                                                    |
-+-----------------+---------------+----------+--------------+------------------+------------------------------------------------------------------------------------------------+
-| EB cb           | JMP rel8      | D        | Valid        | Valid            | Jump short, RIP = RIP + 8-bit displacement sign extended to 
-64-bits                           |
-+-----------------+---------------+----------+--------------+------------------+------------------------------------------------------------------------------------------------+
-| E9 cw           | JMP rel16     | D        | N.S.         | Valid            | Jump near, relative, displacement relative to next instruction. 
-Not supported in 64-bit mode. |
-+-----------------+---------------+----------+--------------+------------------+------------------------------------------------------------------------------------------------+
-| E9 cd           | JMP rel32     | D        | Valid        | Valid            | Jump near, relative, RIP = RIP + 32-bit displacement sign 
-extended to 64-bits                 |
-+-----------------+---------------+----------+--------------+------------------+------------------------------------------------------------------------------------------------+
-| FF /4           | JMP r/m16     | M        | N.S.         | Valid            | Jump near, absolute indirect, address = zero- extended r/m16. Not 
-supported in 64-bit mode    |
-+-----------------+---------------+----------+--------------+------------------+------------------------------------------------------------------------------------------------+
-| FF /4           | JMP r/m32     | M        | N.S.         | Valid            | Jump near, absolute indirect, address given in r/m32. Not 
-supported in 64-bit mode            |
-+-----------------+---------------+----------+--------------+------------------+------------------------------------------------------------------------------------------------+
-| FF /4           | JMP r/m64     | M        | Valid        | N.E              | Jump near, absolute indirect, RIP = 64-Bit offset from register 
-or memory                     |
-+-----------------+---------------+----------+--------------+------------------+------------------------------------------------------------------------------------------------+
-| EA cd           | JMP ptr16:16  | D        | Inv.         | Valid            | Jump far, absolute, address given in operand                                                   |
-+-----------------+---------------+----------+--------------+------------------+------------------------------------------------------------------------------------------------+
-| EA cp           | JMP ptr16:32  | D        | Inv.         | Valid            | Jump far, absolute, address given in operand                                                   |
-+-----------------+---------------+----------+--------------+------------------+------------------------------------------------------------------------------------------------+
-| FF /5           | JMP m16:16    | D        | Valid        | Valid            | Jump far, absolute indirect, address given in m16:16                                           |
-+-----------------+---------------+----------+--------------+------------------+------------------------------------------------------------------------------------------------+
-| FF /5           | JMP m16:32    | D        | Valid        | Valid            | Jump far, absolute indirect, address given in m16:32                                           |
-+-----------------+---------------+----------+--------------+------------------+------------------------------------------------------------------------------------------------+
-| REX.W + FF /5   | JMP m16:64    | D        | Valid        | N.E.             | Jump far, absolute indirect, address given in m16:64                                           |
-+-----------------+---------------+----------+--------------+------------------+------------------------------------------------------------------------------------------------+
-
-
-<jmp-instruction>
-
-
-
-Each row lists a variant of jmp instruction. The first column has 
-the opcode EB cb, with an equivalent symbolic form jmp rel8. 
-Here, rel8 means 128 bytes offset, counting from the end of the 
-instruction. The end of an instruction is the next byte after the 
-last byte of an instruction. To make it more concrete, consider 
-this assembly code:
-
+```assembly
 main:
-
   jmp main
-
   jmp main2
-
   jmp main
-
 main2:
-
   jmp 0x1234
+```
 
-generates the machine code:
+生成了下边的机器码：
 
-[float Table:
-[Table 4:
-Memory address of each opcode
-]
+![表 4.7.2 每个操作码的内存地址](images/04/4.7.2.png)
 
+第一个`jmp main`指令生成了机器码`eb fe`，占据地址`00`与`01`；第一个`jmp main`指令结束位置在地址`02`，位于第一个`jmp main`指令最后一个字节`01`之后。值`fe`即是`-2`，因为`eb`操作码使用一个字节（8位）进行相对寻址。偏移量为`-2`，且第一个`jmp main`指令的结束位置是`02`，加起来我们得到`00`，即转移的目标地址。
 
-           +-------------------+                  +-------------------------+            
-           | main              |                  |          main2          |            
-           +-------------------+                  +-------------------------+            
-             \downarrow
-                                  \downarrow
-                    
-+----------+--------------+-----+-----+-----+-----+-----+--------------+-----+-----+----+
-| Address  |     00       | 01  | 02  | 03  | 04  | 05  |     06       | 07  | 08  | 09 |
-+----------               +-----+-----+-----+-----+-----+--------------+-----+-----+----+
-+----------+--------------+-----+-----+-----+-----+-----+--------------+-----+-----+----+
-| Opcode   |     eb       | fe  | eb  | 02  | eb  | fa  |     e9       | 2b  | 12  | 00 |
-+----------+--------------+-----+-----+-----+-----+-----+--------------+-----+-----+----+
+类似地，`jmp main2`指令生成了`eb 02`，即偏移量为`+2`；`jmp main2`指令的结束地址为`04`，加上偏移量我们得到目标地址为`06`，即标签`main2`标记的起始指令。
 
-]
+同样的规则也适用于`rel16`与`rel32`编码。在上边的例子中，`jmp 0x1234`使用`rel16`（即双字节偏移量）生成了`e9 2b 12`。如表4.7.1所示，`e9`操作码接受一个`cw`操作数，这是一个双字节偏移量（见手册第二卷章节3.1.1.1）。注意这里有一个奇怪的问题：偏移量值为`2b 12`，而不是`34 12`。这没有错。记住，`rel8`/`rel16`/`rel32`是偏移量，不是地址。偏移量是到某个点的距离。因为给出的不是标签而是数字，计算的偏移量是从程序起始位置算起的。在这个例子中，程序起始位置是地址`00`，`jmp 0x1234`的结束位置是地址`09`（意思是自地址０开始已经消耗了９个字节。），所以偏移量为`0x1234 - 0x9 = 0x122b`。明白了吗？
 
-The first jmp main instruction is generated into eb fe and 
-occupies the addresses 00 and 01; the end of the first jmp main 
-is at address 02, past the last byte of the first jmp main which 
-is located at the address 01. The value fe is equivalent to -2, 
-since eb opcode uses only a byte (8 bits) for relative 
-addressing. The offset is -2, and the end address of the first 
-jmp main is 02, adding them together we get 00 which is the 
-destination address for jumping to. 
+操作码为`FF /4`的`jmp`指令允许跳转到一个保存在某个通用寄存器或是内存位置的近程绝对地址；简单来说，就如在描述一栏写的，绝对间接转移。符号`/4`是表4.5.1有数字4的那一列（有着下列字段：`AH` `SP` `ESP` `M45` `XMM4` `4` `100`）。比如说：
 
-Similarly, the jmp main2 instruction is generated into eb 02, 
-which means the offset is +2; the end address of jmp main2 is at 
-04, and adding together with the offset we get the destination 
-address is 06, which is the start instruction marked by the label 
-main2.
-
-The same rule can be applied to rel16 and rel32 encoding. In the 
-example code, jmp 0x1234 uses rel16 (which means 2-byte offset) 
-and is generated into e9 2b 12. As the table [jmp-instruction] 
-shows, e9 opcode takes a cw operand, which is a 2-byte offset 
-(section 3.1.1.1, volume 2). Notice one strange issue here: the 
-offset value is 2b 12, while it is supposed to be 34 12. There is 
-nothing wrong. Remember, rel8/rel16/rel32 is an offset, not an 
-address. A offset is a distance from a point. Since no label is 
-given but a number, the offset is calculated from the start of a 
-program. In this case, the start of the program is the address 
-00, the end of jmp 0x1234 is the address 09[footnote:
-which means 9 bytes was consumed, starting from address 0.
-], so the offset is calculated as 0x1234 - 0x9 = 0x122b. That 
-solved the mystery!
-
-The jmp instructions with opcode FF /4 enable jumping to a near, 
-absolute address stored in a general-purpose register or a memory 
-location; or in short, as written in the description, absolute 
-indirect. The symbol /4 is the column with digit 4 in table [mod-rm-16]
-[footnote:
-The column with the following fields:
-
-AH
-
-SP
-
-ESP
-
-M45
-
-XMM4
-
-4
-
-100
-]. For example:
-
+```assembly
 jmp [0x1234]
+```
 
-is generated into:
+生成了
 
+```text
 ff 26 34 12
+```
 
-Since this is 16-bit code, we use table [mod-rm-16]. Looking up 
-the table, ModR/M value 26 means disp16, which means a 16-bit 
-offset from the start of current index[footnote:
-Look at the note under the table.
-], which is the base address stored in DS register. In this case, 
-jmp [0x1234] is implicitly understood as jmp [ds:0x1234], which 
-means the destination address is 0x1234 bytes away from the start 
-of a data segment.
+因为是16位模式，我们使用表4.5.1。查表得知，`ModR/M`的值`26`指的是`disp16`，指代从当前索引（详见表的注释）的起始位置起的16位偏移量，这个索引即存储在`DS`寄存器的基址。在这个例子中，`jmp [0x1234]`应当被理解为`jmp [ds:0x1234]`，即目标地址是距离数据节起始位置`0x1234`字节的位置。
 
-The jmp instruction with opcode FF /5 enables jumping to a far, 
-absolute address stored in a memory location (as opposed to /4, 
-which means stored in a register); in short, a far pointer. To 
-generate such instruction, the keyword far is needed to tell nasm 
-we are using a far pointer:
+操作码为`FF /5`的`jmp`指令允许跳转到一个保存在某*内存位置*的远程绝对地址（`/5`与`/4`刚好相反，`/4`表示储存在寄存器）；简单来说，即*远程指针*。为了生成这样的指令，我们需要用关键字`far`告诉`nasm`我们使用的是远程指针：
 
+```assembly
 jmp far [eax]
+```
 
-is generated into:
+生成了
 
-67 ff 28
+```text
+66 ff 28
+```
 
-Since 28 is the value in the 5th column of the table [mod-rm-32][footnote:
-Remember the prefix 67 indicates the instruction is used as 
-32-bit. The prefix only added if the default environment is 
-assumed as 16-bit when generating code by an assembler.
-] that refers to [eax], we successfully generate an instruction 
-for a far jump. After CPU runs the instruction, the program 
-counter eip and code segment register cs is set to the memory 
-address, stored in the memory location that eax points to, and 
-CPU starts fetching code from the new address in cs and eip. To 
-make it more concrete, here is an example:
+由于`28`是表4.5.2（还记得前缀67表示该指令当前为32位模式吗？只有汇编器生成代码时认为默认环境为16位时才会加上这个前缀。）第5列的值，指向`[eax]`，我们成功生成了远程跳转的指令。当CPU执行到该条指令时，程序计数器`eip`以及代码节寄存器`cs`被赋值为`eax`指向的内存地址，而后CPU开始从这个新地址获取代码。为了更具体一些，我们来看看下边这段汇编代码：
 
+![图4.7.1 远程跳转示例，目标地址储存在地址`0x1000`，是eax指向的地方。当CPU执行了这条指令之后，代码节寄存器cs与指令指针eip](images/04/far_jmp_ex.png)
 
+远程地址总共使用了６个字节来表示一个16位的节和32位的地址，并且标示为表4.7.1中的`m16:32`。从上边的图可以看到，蓝色的部分是节地址，值`0x5678`被加载到`cs`寄存器；红色部分是那一节中的内存地址，值`0x1234`加载到了`eip`寄存器，并从这个地方开始执行。
 
-     <Graphics file: C:/Users/Tu Do/os01/book_src/images/04/far_jmp_ex.pdf>
-     
+最后，操作码为`EA`的`jmp`指令可以跳转到一个直接绝对地址。比如说，下面的指令：
 
-
-
-The far address consumes total of 6 bytes in size for a 16-bit 
-segment and 32-bit address, which is encoded as m16:32 from the 
-table [jmp-instruction]. As can be seen from the figure above, 
-the blue part is a segment address, loaded into cs register with 
-the value 0x5678; the red part is the memory address within that 
-segment, loaded into eip register with the value 0x1234 and start 
-executing from there. 
-
-Finally, the jmp instructions with EA opcode jump to a direct 
-absolute address. For example, the instruction:
-
+```assembly
 jmp 0x5678:0x1234
+```
 
-is generated into:
+生成了
 
+```text
 ea 34 12 78 56
+```
 
-The address 0x5678:0x1234 is right next to the opcode, unlike FF 
-/5 instruction that needs an indirect address in eax register.
+地址`0x5678:0x1234`就位于操作码之后，不像`FF /5`指令，需要一个位于`eax`寄存器的间接地址。
 
-We skip the jump instruction with REX prefix, as it is a 64-bit 
-instruction. 
-
-
+我们跳过带`REX`前缀的跳转指令，因为它是一个64位指令。
 
   Examine compiled data
 
