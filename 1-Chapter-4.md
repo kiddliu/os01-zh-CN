@@ -6,7 +6,7 @@
 
 我们将着重学习objdump，以及如何使用英特尔的文档帮助我们理解x86汇编代码。
 
-## 4.1 objdump
+## 4.1 `objdump`
 
 *objdump*是一个可以显示目标文件（object files）信息的程序。稍后在调试手动链接过程中产生的不正确的布局时会很有用。现在，我们用`objdump`来检查高阶源代码是如何映射到汇编代码的。我们暂时忽略输出，首先了解如何使用这个命令。使用`objdump`是很简单的：
 
@@ -527,278 +527,115 @@ ea 34 12 78 56
 
 我们跳过带`REX`前缀的跳转指令，因为它是一个64位指令。
 
-  Examine compiled data
+## 4.8 检视编译生成的数据
 
-In this section, we will examine how data definition in C maps to 
-its assembly form. The generated code is extracted from .bss 
-section. That means, the assembly code displayed has no[footnote:
-Actually, code is just a type of data, and is often used for 
-hijacking into a running program to execute such code. However, 
-we have no use for it in this book.
-], aside from showing that such a value has an equivalent 
-assembly opcode that represents an instruction.
+在这一节，我们会检视用Ｃ语言定义的数据是如何映射到它的汇编形式的。这些生成的代码是从`.bss`节抽取出来的。也就是说，展示出来的汇编代码无法执行（实际上，代码只是数据类型的一种，常常用来黑进正在执行的程序从而执行这样的代码。然而，在本书中我们是不会这样做的。），哪怕这样的值可以对应一条可以代表指令的汇编操作码。
 
-The code-assembly listing is not random, but is based on Chapter 
-4 of Volume 1, “Data Type”. The chapter lists fundamental data 
-types that x86 hardware operates on, and through learning the 
-generated assembly code, it can be understood how close C maps 
-its syntax to hardware, and then a programmer can see why C is 
-appropriate for OS programming. The specific objdump command used 
-in this section will be:
+代码-汇编列表不是随机定义的，而是基于手册第一卷第四章“数据类型”。这一章列出了x86硬件可以操作的所有基础数据类型，并且通过学习生成的汇编代码，可以了解Ｃ语言的语法与硬件的联系是多么紧密，然后程序员就能理解为什么Ｃ语言适合用来做操作系统开发了。这一节要用到的`objdump`命令是：
 
-
-
+```bash
 $ objdump -z -M intel -S -D -j .data -j .bss <object file> | less
+```
 
+注意：零字节会被三点符号（...）隐藏。要显示所有的零字节，我们加上了`-z`开关。
 
+### 4.8.1 基础数据类型
 
-Note: zero bytes are hidden with three dot symbols: ... To show 
-all the zero bytes, we add -z option.
+x86架构使用的最基础的类型是基于大小的，每一个都是前一个大小的两倍大：单字节（8位），双字节（16位），四字节（32位），八字节（64位），十六字节（128位）。
 
-  Fundamental data types
+![图4.8.1 基础数据类型](images/04/fundamental_data_types.png)
 
-The most basic types that x86 architecture works with are based 
-on sizes, each is twice as large as the previous one: 1 byte (8 
-bits), 2 bytes (16 bits), 4 bytes (32 bits), 8 bytes (64 bits) 
-and 16 bytes (128 bits).
+这些类型是最简单的：它们就只是大小不一的内存块，使得CPU可以有效率地访问内存。手册第一卷章节4.1.1讲：
 
+> 单字、双字和四字不需要与内存中的自然边界对齐。单字、双字和四字的自然边界分别是偶数地址、可被四整除的地址以及可被八整除的地址。然而为了提高程序的性能，数据结构（尤其是堆栈）应该尽可能在自然边界上对齐。这样做的原因是处理器需要两次内存访问才能访问未对齐的内存；而访问对齐的地址只需要一次。跨越四字节边界的单字、双字操作数，或是跨越八字节边界的四字操作数会被认为是未对齐的，访问需要两个内存总线周期。
+>
+> 一些会操作双四字的指令会要求内存操作数在自然边界上对齐。如果使用了未对齐的操作数，这些指令会生成一般保护异常 (`#GP`)。双四字的自然边界是任何可以被16整除的地址。其它会操作双四字的指令则允许没有对齐访问（于是不会产生一般保护异常）。然而，访问内存中没有对齐的数据需要额外的内存总线周期。
 
-
-<Graphics file: C:/Users/Tu Do/os01/book_src/images/04/fundamental_data_types.pdf>
-
-
-
-These types are simplest: they are just chunks of memory at 
-different sizes that enables CPU to access memory efficiently. 
-From the manual, section 4.1.1, volume 1:
-
-Words, doublewords, and quadwords do not need to be aligned in 
-memory on natural boundaries. The natural boundaries for words, 
-double words, and quadwords are even-numbered addresses, 
-addresses evenly divisible by four, and addresses evenly 
-divisible by eight, respectively. However, to improve the 
-performance of programs, data structures (especially stacks) 
-should be aligned on natural boundaries whenever possible. The 
-reason for this is that the processor requires two memory 
-accesses to make an unaligned memory access; aligned accesses 
-require only one memory access. A word or doubleword operand that 
-crosses a 4-byte boundary or a quadword operand that crosses an 
-8-byte boundary is considered unaligned and requires two separate 
-memory bus cycles for access.
-
-Some instructions that operate on double quadwords require memory 
-operands to be aligned on a natural boundary. These instructions 
-generate a general-protection exception (#GP) if an unaligned 
-operand is specified. A natural boundary for a double quadword is 
-any address evenly divisible by 16. Other instructions that 
-operate on double quadwords permit unaligned access (without 
-generating a general-protection exception). However, additional 
-memory bus cycles are required to access unaligned data from 
-memory.
+在Ｃ语言种，下面的原始类型（必须包含`stdint.h`）映射到了刚才提到的基础类型：
 
 In C, the following primitive types (must include stdint.h) maps 
 to the fundamental types:
 
-  Source
+```C
+#include <stdint.h>
 
-  #include <stdint.h>
-
-
-
-uint8_t @|\color{red}\bfseries byte|@ = 0x12;
-
-uint16_t @|\color{blue}\bfseries word|@ = 0x1234;
-
-uint32_t @|\color{green}\bfseries dword|@ = 0x12345678;
-
-uint64_t @|\color{magenta}\bfseries qword|@ = 0x123456789abcdef;
-
-unsigned __int128 @|\color{cyan}\bfseries dqword1|@ =  (__int128) 
-0x123456789abcdef;
-
-unsigned __int128 @|\color{cyan}\bfseries dqword2|@ =  (__int128) 
-0x123456789abcdef << 64;
-
-
+uint8_t byte = 0x12;
+uint16_t word = 0x1234;
+uint32_t dword = 0x12345678;
+uint64_t qword = 0x123456789abcdef;
+unsigned __int128 dqword1 = (__int128) 0x123456789abcdef;
+unsigned __int128 dqword2 = (__int128) 0x123456789abcdef << 64;
 
 int main(int argc, char *argv[]) {
-
-        return 0;
-
+  return 0;
 }
+```
 
-  Assembly
+汇编代码：
 
-  0804a018 <byte>:
+```assembly
+0804a018 <byte>:
+ 804a018:     12 00               adc al,BYTE PTR [eax]
+0804a01a <word>:
+ 804a01a:     34 12               xor al,0x12
+0804a01c <dword>:
+ 804a01c:     78 56               js 804a074 <_end+0x48>
+ 804a01e:     34 12               xor al,0x12
+0804a020 <qword>:
+ 804a020:     ef                  out dx,eax
+ 804a021:     cd ab               int 0xab
+ 804a023:     89 67 45            mov DWORD PTR [edi+0x45],esp
+ 804a026:     23 01               and eax,DWORD PTR [ecx]
+0000000000601040 <dqword1>:
+ 601040:      ef                  out dx,eax
+ 601041:      cd ab               int 0xab
+ 601043:      89 67 45            mov DWORD PTR [rdi+0x45],esp
+ 601046:      23 01               and eax,DWORD PTR [rcx]
+ 601048:      00 00               add BYTE PTR [rax],al
+ 60104a:      00 00               add BYTE PTR [rax],al
+ 60104c:      00 00               add BYTE PTR [rax],al
+ 60104e:      00 00               add BYTE PTR [rax],al
+0000000000601050 <dqword2>:
+ 601050:      00 00               add BYTE PTR [rax],al
+ 601052:      00 00               add BYTE PTR [rax],al
+ 601054:      00 00               add BYTE PTR [rax],al
+ 601056:      00 00               add BYTE PTR [rax],al
+ 601058:      ef                  out dx,eax
+ 601059:      cd ab               int 0xab
+ 60105b:      89 67 45            mov DWORD PTR [rdi+0x45],esp
+ 60105e:      23 01               and eax,DWORD PTR [rcx]
+```
 
-   804a018:       12 00                   adc    al,BYTE PTR 
-  [eax]
+`gcc`生成之前声明的变量`byte`、`word`、`dword`、`qword`、`dqword1`、`dword2`，并且各自的值以相同的颜色高亮显示；相同类型的变量也用相同的颜色高亮显示。由于这是数据节，汇编列表没有任何意义。当用`uint8_t`声明`byte`时，`gcc`保证`byte`大小始终为一个字节。但是，警惕的读者可能会注意到`byte`变量中值`12`旁边的值`00`。这是正常的，因为`gcc`通过填充额外的字节避免内存没有对齐的情况。为了更明显一些，我们看一下`.data`节的`readelf`命令的输出：
 
-  
-
-  0804a01a <word>:
-
-   804a01a:       34 12                   xor    al,0x12
-
-  
-
-  0804a01c <dword>:
-
-   804a01c:       78 56                   js     804a074 
-  <_end+0x48>
-
-   804a01e:       34 12                   xor    al,0x12
-
-  
-
-  0804a020 <qword>:
-
-   804a020:       ef                      out    dx,eax
-
-   804a021:       cd ab                   int    0xab
-
-   804a023:       89 67 45                mov    DWORD PTR 
-  [edi+0x45],esp
-
-   804a026:       23 01                   and    eax,DWORD PTR 
-  [ecx]
-
-  
-
-  0000000000601040 <dqword1>:
-
-    601040:       ef                      out    dx,eax
-
-    601041:       cd ab                   int    0xab
-
-    601043:       89 67 45                mov    DWORD PTR 
-  [rdi+0x45],esp
-
-    601046:       23 01                   and    eax,DWORD PTR 
-  [rcx]
-
-    601048:       00 00                   add    BYTE PTR 
-  [rax],al
-
-    60104a:       00 00                   add    BYTE PTR 
-  [rax],al
-
-    60104c:       00 00                   add    BYTE PTR 
-  [rax],al
-
-    60104e:       00 00                   add    BYTE PTR 
-  [rax],al
-
-  
-
-  0000000000601050 <dqword2>:
-
-    601050:       00 00                   add    BYTE PTR 
-  [rax],al
-
-    601052:       00 00                   add    BYTE PTR 
-  [rax],al
-
-    601054:       00 00                   add    BYTE PTR 
-  [rax],al
-
-    601056:       00 00                   add    BYTE PTR 
-  [rax],al
-
-    601058:       ef                      out    dx,eax
-
-    601059:       cd ab                   int    0xab
-
-    60105b:       89 67 45                mov    DWORD PTR 
-  [rdi+0x45],esp
-
-    60105e:       23 01                   and    eax,DWORD PTR 
-  [rcx]
-
-  
-
-gcc generates the variables byte, word, dword, qword, dqword1, 
-dword2, written earlier, with their respective values highlighted 
-in the same colors; variables of the same type are also 
-highlighted in the same color. Since this is data section, the 
-assembly listing carries no meaning. When byte is declared with 
-uint8_t, gcc guarantees that the size of byte is always 1 byte. 
-But, an alert reader might notice the 00 value next to the 12 
-value in the byte variable. This is normal, as gcc avoid memory 
-misalignment by adding extra padding bytespadding bytes. To make 
-it easier to see, we look at readelf output of .data section:
-
-
-
+```bash
 $ readelf -x .data hello
+```
 
+输出是（颜色标记了哪个值属于哪个变量）：
 
+```text
+  Hex dump of section '.data':
+    0x00601020 00000000 00000000 00000000 00000000 ................
+    0x00601030 12003412 78563412 efcdab89 67452301 ..4.xV4.....gE#.
+    0x00601040 efcdab89 67452301 00000000 00000000 ....gE#.........
+    0x00601050 00000000 00000000 efcdab89 67452301 ............gE#.
+```
 
-the output is (the colors mark which values belong to which 
-variables):
+从`readelf`的输出可以看出，变量是根据它们的类型以及程序员声明的顺序分配存储空间的（颜色对应于这些变量）。英特尔处理器是小端设备，这意味着较小的地址保存着具有较小值的字节，而较大的地址保存着具有较大值的字节。比如`0x1234`显示为`34 12`；也就是，`34`首先出现在地址`0x601032`处，然后`12`出现在`0x601033`处。字节内的十进制值是不变的，所以我们看到的是`34 12`而不是`43 21`。起初这些很令人费解，但是您很快就会习惯的。
 
-Hex dump of section '.data':
+另外，当`char`类型总是１个字节时，为什么我们还要额外添加`int8_t`，这不是画蛇添足么？事实上，`char`类型并不能保证大小总是１个字节，而只能保证大小至少是１个字节。在Ｃ语言中，一个字节被定义为一个`char`的大小，而一个`char`被定义为当前底层硬件平台的最小可寻址单元。有些硬件设备的最小可寻址单位是16位，甚至更大，这意味着`char`大小为２个字节，而这些平台中的“字节”实际上是两个8位字节。
 
-  0x00601020 00000000 00000000 00000000 00000000 ................
+不是所有架构都支持双四字类型。尽管如此，`gcc`仍然提供了对128位数字的支持，并在CPU支持的情况下生成对应代码（即，CPU必须是64位的）。通过指定类型为`__int128`或是`unsigned __int128`，我们得到一个128位变量。如果CPU不支持64位模式，`gcc`会报错。
 
-  0x00601030 12003412 78563412 efcdab89 67452301 ..4.xV4.....gE#.
+Ｃ语言中的这些用来表示基本数据类型的数据类型也叫做*无符号数*。除了数值计算以外，无符号数也被用作内存中构造数据的工具；稍后我们在本书中会看到这样的应用，比如各种数据结构被组成不同的位组（bit groups）。
 
-  0x00601040 efcdab89 67452301 00000000 00000000 ....gE#.........
+在上面所有的例子中，当大小较小的变量值赋给给大小较大的变量时，这个值直接适用于大小较大的变量。相反地，大小较大的变量值赋给大小较小的变量时会出现两种情况：
 
-  0x00601050 00000000 00000000 efcdab89 67452301 ............gE#.
+* 这个值大于大小较小的变量的最大值，因此需要截断到该变量的大小，导致值不正确。
+* 这个值小于大小较小的变量的最大值，因此适用于该变量。
 
-As can be seen in the readelf output, variables are allocated 
-storage space according to their types and in the declared order 
-by the programmer (the colors correspond the the variables). 
-Intel is a little-endian machine, which means smaller addresses 
-hold bytes with smaller values, larger addresses hold byte with 
-larger values. For example, 0x1234 is displayed as 34 12; that 
-is, 34 appears first at address 0x601032, then 12 at 0x601033. 
-The decimal values within a byte is unchanged, so we see 34 12 
-instead of 43 21. This is quite confusing at first, but you will 
-get used to it soon.
-
-Also, isn't it redundant when char type is always 1 byte already 
-and why do we bother adding int8_t? The truth is, char type is 
-not guaranteed to be 1 byte in size, but only the minimum of 1 
-byte in size. In C, a byte is defined to be the size of a char, 
-and a char is defined to be smallest addressable unit of the 
-underlying hardware platform. There are hardware devices that the 
-smallest addressable unit is 16 bit or even bigger, which means 
-char is 2 bytes in size and a “byte” in such platforms is 
-actually 2 units of 8-bit bytes.
-
-Not all architectures support the double quadword type. Still, 
-gcc does provide support for 128-bit number and generate code 
-when a CPU supports it (that is, a CPU must be 64-bit). By 
-specifying a variable of type __int128 or unsigned __int128, we 
-get a 128-bit variable. If a CPU does not support 64-bit mode, 
-gcc throws an error.
-
-The data types in C, which represents the fundamental data types, 
-are also called unsigned numbers. Other than numerical 
-calculations, unsigned numbers are used as a tool for structuring 
-data in memory; we will see this application later on in the book, 
-when various data structures are organized into bit groups.
-
-In all the examples above, when the value of a variable with 
-smaller size is assigned to a variable with larger size, the 
-value easily fits in the larger variable. On the contrary, the 
-value of a variable with larger size is assigned to a variable 
-with smaller size, two scenarios occur: 
-
-• The value is greater than the maximum value of the variable 
-  with smaller layout, so it needs truncating to the size of the 
-  variable and causing incorrect value.
-
-• The value is smaller than the maximum value of the variable 
-  with a smaller layout, so it fits the variable.
-
-However, the value might be unknown until runtime and can be 
-value, it is best not to let such implicit conversion handled by 
-the compiler, but explicitly controlled by a programmer. 
-Otherwise it will cause subtle bugs that are hard to catch as the 
-erroneous values might rarely be used to reproduce the bugs.
+然而，这个值可能在运行之前是未知的，所以最好不要让编译器处理这种隐式转换，而是显式地由程序员控制。不然，这样会导致难以定位的细微错误，比如出错的值可能很少用到，复现问题都变得困难。
 
   Pointer Data Types
 
