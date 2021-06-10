@@ -79,7 +79,7 @@ Disassembly of section .note.gnu.build-id:
 ```
 
 * 第一列是汇编指令的地址。在上边的例子里，这个地址是`0x4004d6`。
-* 第二列是以原始十六进制值表示的汇编指令。在上边的例子里，这个值是`0x55`。
+* 第二列是以原始十六进制值表示的汇编指令。在上边的例子里，这个值是`0x4004d6`。
 * 第三列是这条汇编指令。根据当前的节信息，这条汇编指令可能有意义，也可能没有意义。举个例子，如果这条汇编指令在`.text`节，那么这些汇编指令就是实际的程序代码。而如果这些汇编指令在`.data`节，我们就可以放心地忽略这些指令。背后的原因是`objdump`不知道哪些十六进制值是代码，哪些是数据，于是不加区分地把每一个十六进制值都翻译成了汇编指令。在上边地例子里，这个汇编指令是`push %rbp`。
 * 可选的第四列是注释，告知地址的来源。注释只有在有引用指向这个地址时才会出现。比如说，下边蓝色的注释：
   
@@ -163,7 +163,7 @@ $ nasm -f elf test.asm -o test
 ```bash
 00000000  7f 45 4c 46 01 01 01 00  00 00 00 00 00 00 00 00  |.ELF............|
 00000010  01 00 03 00 01 00 00 00  00 00 00 00 00 00 00 00  |................|
-00000020  40 00 00 00 00 00 00 00  34 00 00 00 00 00 28 00  |@.......4.....(.|
+00000020  40 00 00 00 00 00 00 00  34 00 00 00 00 00 28 00  .......4.....(.|
 00000030  05 00 02 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
 00000040  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
 *
@@ -205,7 +205,7 @@ bits 32
 
 ![英特尔64与IA-32架构指令格式](images/04/x86_instruction_format.png)
 
-还记得一条汇编指令就是固定长度的位串（series of bit）吗？指令之间长度各不相同，取决于指令本身的复杂程度。每一条指令的共通之处是上图中描述的通用格式，指令位串被划分成了更小的几部分，各自包含了不同类型的信息。包括：
+还记得一条汇编指令就是固定长度的比特序列（series of bit）吗？指令之间长度各不相同，取决于指令本身的复杂程度。每一条指令的共通之处是上图中描述的通用格式，指令比特序列被划分成了更小的几部分，各自包含了不同类型的信息。包括：
 
 *指令前缀*出现在指令头部，是可选项。实际上，前缀只是另外一个汇编指令，插入在可以被应用的汇编指令之前，程序员可以灵活选择使用。有着２或３字节操作码的指令默认包含前缀。
 
@@ -348,7 +348,7 @@ jmp [eax * 4  + 0x1234]
 * `0x67`是地址尺寸重写前缀。它的涵义是如果一条指令运行的默认地址大小比如说是16位，使用这个前缀就可以使这条指令使用非默认的地址尺寸，比如32位或者64位。由于二进制默认应该是16位的，`0x67`把指令变成了32位模式。
 * `0xff`是操作码。
 * `0x24`是`ModR/M`字节。根据表格4.5.2，这里的值表明在它之后有一个`SIB`字节。
-* `0x85`是`SIB`字节。根据表格4.5.3，字节`0x85`可以被拆解为以下的位串：
+* `0x85`是`SIB`字节。根据表格4.5.3，字节`0x85`可以被拆解为以下的比特序列：
 
   ![SIB字节值85的位表示](images/04/SIB.png)
 
@@ -637,349 +637,172 @@ $ readelf -x .data hello
 
 然而，这个值可能在运行之前是未知的，所以最好不要让编译器处理这种隐式转换，而是显式地由程序员控制。不然，这样会导致难以定位的细微错误，比如出错的值可能很少用到，复现问题都变得困难。
 
-  Pointer Data Types
+## 4.8.2 指针数据类型
 
-Pointers are variables that hold memory addresses. x86 works with 
-2 types of pointers:
+指针是保存内存地址的变量。x86使用两种类型的指针：
 
-  Near pointer is a 16-bit/32-bit offset within a segment, also 
-  called effective address.
+* 近指针是段内的16位/32位偏移量，也叫做有效地址。
+* 远指针和近指针一样，是一个偏移量，但是有一个显式的段选择器。
 
-  Far pointer is also an offset like a near pointer, but with an 
-  explicit segment selector.
+![图4.8.2 数字数据类型](images/04/pointer_data_type.png)
 
+Ｃ语言只支持近指针，是由于远指针与平台有关。在应用程序代码中，您可以假设当前段的地址是从零开始的，于是偏移量可以是从零到最大地址之间任意的内存地址。
 
+*源码*
 
-     <Graphics file: C:/Users/Tu Do/os01/book_src/images/04/pointer_data_type.pdf>
-     
-
-
-
-C only provides support for near pointers, since far pointers are platform 
-dependent. In application code, you can assume that 
-the address of current segment starts at 0, so the offset is 
-actually any memory address from 0 to the maximum address.
-
-  Source
-
-  #include <stdint.h>
-
-
+```c
+#include <stdint.h>
 
 int8_t i = 0;
-
-int8_t @|\color{red}\bfseries *p1|@ =  (int8_t *) 0x1234;
-
-int8_t @|\color{blue}\bfseries *p2|@ =  &i;
-
-
+int8_t *p1 = (int8_t *) 0x1234;
+int8_t *p2 = &i;
 
 int main(int argc, char *argv[]) {
-
-        return 0;
-
+    return 0;
 }
+```
 
-  Assembly
+*汇编代码*
 
+```assembly
   0000000000601030 <p1>:
-
     601030:       34 12                   xor    al,0x12
-
-    601032:       00 00                   add    BYTE PTR 
-  [rax],al
-
-    601034:       00 00                   add    BYTE PTR 
-  [rax],al
-
-    601036:       00 00                   add    BYTE PTR 
-  [rax],al
-
+    601032:       00 00                   add    BYTE PTR [rax],al
+    601034:       00 00                   add    BYTE PTR [rax],al
+    601036:       00 00                   add    BYTE PTR [rax],al
   0000000000601038 <p2>:
-
-    601038:       41 10 60 00             adc    BYTE PTR 
-  [r8+0x0],spl
-
-    60103c:       00 00                   add    BYTE PTR 
-  [rax],al
-
-    60103e:       00 00                   add    BYTE PTR 
-  [rax],al
-
-  
-
+    601038:       41 10 60 00             adc    BYTE PTR [r8+0x0],spl
+    60103c:       00 00                   add    BYTE PTR [rax],al
+    60103e:       00 00                   add    BYTE PTR [rax],al
   Disassembly of section .bss:
-
-  
-
   0000000000601040 <__bss_start>:
-
-    601040:       00 00                   add    BYTE PTR 
-  [rax],al
-
+    601040:       00 00                   add    BYTE PTR [rax],al
   0000000000601041 <i>:
-
-    601041:       00 00                   add    BYTE PTR 
-  [rax],al
-
-    601043:       00 00                   add    BYTE PTR 
-  [rax],al
-
-    601045:       00 00                   add    BYTE PTR 
-  [rax],al
-
+    601041:       00 00                   add    BYTE PTR [rax],al
+    601043:       00 00                   add    BYTE PTR [rax],al
+    601045:       00 00                   add    BYTE PTR [rax],al
     601047:       00                      .byte 0x0
+```
 
-The pointer p1 holds a direct address with the value 0x1234. The 
-pointer p2 holds the address of the variable i. Note that both 
-the pointers are 8 bytes in size (or 4-byte, if 32-bit).
+指针`p1`指向一个直接地址，值为`0x1234`。指针`p2`保存变量`i`的地址。请注意，两个指针的大小都是８个字节（或着是４个字节，如果是32位的话）。
 
-  Bit Field Data Type
+## 4.8.3 位域数据类型
 
-A bit fieldbit field is a contiguous sequence of bits. Bit fields 
-allow data structuring at bit level. For example, a 32-bit data 
-can hold multiple bit fields that represent multiples different 
-pieces of information, such as bits 0-4 specifies the size of a 
-data structure, bit 5-6 specifies permissions and so on. Data 
-structures at the bit level are common for low-level programming. 
+位域是连续的位序列。位域允许在位级别进行数据结构化。举个例子，一个32位的数据可以包含数个位域，表示数个不同的信息片段，比如位0到4表示数据结构的大小，位5到6指定权限，等等。位级别的数据结构对底层编程来说是很常见的。
 
+![图4.8.3 数字数据类型（来源：手册第一卷，图4-6）](images/04/bit_field_data_type.png)
 
+*源码*
 
-     <Graphics file: C:/Users/Tu Do/os01/book_src/images/04/bit_field_data_type.pdf>
-     
-
-
-
-  Source
-
-  struct bit_field {
-
+```c
+struct bit_field {
     int data1:8;
-
     int data2:8;
-
     int data3:8;
-
     int data4:8;
-
 };
-
-
 
 struct bit_field2 {
-
     int data1:8;
-
     int data2:8;
-
     int data3:8;
-
     int data4:8;
-
     char data5:4;
-
 };
-
-
 
 struct normal_struct {
-
     int data1;
-
     int data2;
-
     int data3;
-
     int data4;
-
 };
 
-
-
-struct normal_struct @|\color{red}\bfseries ns|@ = {
-
-    .data1 = @|\color{red}\bfseries 0x12345678|@,
-
-    .data2 = @|\color{red}\bfseries 0x9abcdef0|@,
-
-    .data3 = @|\color{red}\bfseries 0x12345678|@,
-
-    .data4 = @|\color{red}\bfseries 0x9abcdef0|@,
-
+struct normal_struct ns = {
+    .data1 = 0x12345678,
+    .data2 = 0x9abcdef0,
+    .data3 = 0x12345678,
+    .data4 = 0x9abcdef0
 };
 
+int i = 0x12345678;
 
-
-int @|\color{blue}\bfseries i|@ = 0x12345678;
-
-
-
-struct bit_field @|\color{magenta}\bfseries bf|@ = {
-
-    .data1 = @|\color{magenta}\bfseries 0x12|@,
-
-    .data2 = @|\color{magenta}\bfseries 0x34|@,
-
-    .data3 = @|\color{magenta}\bfseries 0x56|@,
-
-    .data4 = @|\color{magenta}\bfseries 0x78|@
-
+struct bit_field bf = {
+    .data1 = 0x12,
+    .data2 = 0x34,
+    .data3 = 0x56,
+    .data4 = 0x78
 };
 
-
-
-struct bit_field2 @|\color{green}\bfseries bf2|@ = {
-
-    .data1 = @|\color{green}\bfseries 0x12|@,
-
-    .data2 = @|\color{green}\bfseries 0x34|@,
-
-    .data3 = @|\color{green}\bfseries 0x56|@,
-
-    .data4 = @|\color{green}\bfseries 0x78|@,
-
-    .data5 = @|\color{green}\bfseries 0xf|@
-
+struct bit_field2 bf2 = {
+    .data1 = 0x12,
+    .data2 = 0x34,
+    .data3 = 0x56,
+    .data4 = 0x78,
+    .data5 = 0xf
 };
-
-
 
 int main(int argc, char *argv[]) {
-
     return 0;
-
 }
 
-  Assembly
+*汇编代码* 在下面的汇编代码中，每个变量以及它们的值都加上了独有的颜色：
 
-  Each variable and its value are given a unique color in the 
-  assembly listing below:
-
+```assembly
   0804a018 <ns>:
-
    804a018: 78 56                   js     804a070 <_end+0x34>
-
    804a01a: 34 12                   xor    al,0x12
-
-   804a01c: f0 de bc 9a 78 56 34    lock fidivr WORD PTR 
-  [edx+ebx*4+0x12345678]
-
+   804a01c: f0 de bc 9a 78 56 34    lock fidivr WORD PTR [edx+ebx*4+0x12345678]
    804a023: 12 
-
-   804a024: f0 de bc 9a 78 56 34    lock fidivr WORD PTR 
-  [edx+ebx*4+0x12345678]
-
+   804a024: f0 de bc 9a 78 56 34    lock fidivr WORD PTR [edx+ebx*4+0x12345678]
    804a02b: 12 
-
   0804a028 <i>:
-
    804a028: 78 56                   js     804a080 <_end+0x44>
-
    804a02a: 34 12                   xor    al,0x12
-
   0804a02c <bf>:
-
-   804a02c: 12 34 56                adc    dh,BYTE PTR 
-  [esi+edx*2]
-
+   804a02c: 12 34 56                adc    dh,BYTE PTR [esi+edx*2]
    804a02f: 78 12                   js     804a043 <_end+0x7>
-
   0804a030 <bf2>:
-
-   804a030: 12 34 56                adc    dh,BYTE PTR 
-  [esi+edx*2]
-
+   804a030: 12 34 56                adc    dh,BYTE PTR [esi+edx*2]
    804a033: 78 0f                   js     804a044 <_end+0x8>
-
    804a035: 00 00                   add    BYTE PTR [eax],al
-
    804a037: 00                      .byte 0x0
+```
 
-The sample code creates 4 variables: ns, i, bf, bf2. The 
-definition of normal_struct and bit_field structs both specify 4 
-integers. bit_field specifies additional information next to its 
-member name, separated by a colon, e.g. .data1 : 8. This extra 
-information is the bit width of each bit group. It means, even 
-though defined as an int, .data1 only consumes 8 bit of 
-information. If additional data members are specified after 
-.data1, two scenarios happen:
+示例代码创建了４个变量：`ns`、`i`、`bf`、`bf2`。`normal_struct`与`bit_field`结构体的定义各自指定了４个整数。`bit_field`在成员名称旁边声明了用冒号分隔开的附加信息，例如`.data1:8`。这个额外的信息指的是每个位组的位宽。这意味着即使定义为`int`，`.data1`也只占据了８位的信息。如果在`.data1`之后指定了其他数据成员，就会发生两种情况：
 
-• If the new data members fit within the remaining bits after 
-  .data, which are 24 bits[footnote:
-Since .data1 is declared as an int, 32 bits are still allocated, 
-but .data1 can only access 8 bits of information.
-], then the total size of bit_field struct is still 4 bytes, or 
-  32 bits.
+* 如果新数据成员可以放进`.data`之后的剩余位，即24位（由于`.data1`被声明为`int`，所以仍然分配了32位，但是`.data1`只能访问８位的信息。），那么`bit_field`结构体的总大小仍然是４个字节，即32位。
+* 如果不可以，剩余的24位（３个字节）仍然分配了。但是新数据成员被分配了全新的存储空间，而不使用在它之前的24位。
 
-• If the new data members don't fit, then the remaining 24 bits 
-  (3 bytes) are still allocated. However, the new data members 
-  are allocated brand new storages, without using the previous 24 
-  bits.
+在示例中，4个数据成员：`.data1`、`.data2`、`.data3`和`.data4`，每个都可以访问8位信息，组合在一起就可以访问由`.data1`声明的整型数所有４个字节。从生成的汇编代码可以看出，由于每个值都是一个单独的成员，`bf`的值遵循Ｃ语言代码中编写的自然顺序：`12 34 56 78`。相比之下，`i`的值是一个作为整体的数字，于是它服从小端规则，因此包含值`78 56 34 12`。 注意在地址`804a02f`处，是`bf`中最后一个字节的地址，`78` 是它的最后一个数字，但旁边还有一个数字`12`。这个额外的数字`12`不属于`bf`的值。`objdump`会把`78`误认为是操作码；`78`对应`js`指令，需要一个操作数。出于这个原因，`objdump`抓取了`78`之后下一个字节任意的内容并把它放在那里。毕竟，`objdump`是一个显示汇编代码的工具。一个更好的工具是`gdb`，我们会在下一章学习它。对于这一章，`objdump`够用了。
 
-In the example, the 4 data members: .data1, .data2, .data3 and 
-.data4, each can access 8 bits of information, and together can 
-access all of 4 bytes of the integer first declared by .data1. As 
-can be seen by the generated assembly code, the values of bf are 
-follow natural order as written in the C code: 12 34 56 78, since 
-each value is a separate members. In contrast, the value of i is 
-a number as a whole, so it is subject to the rule of little 
-endianess and thus contains the value 78 56 34 12. Note that at 
-804a02f, is the address of the final byte in bf, but next to it 
-is a number 12, despite 78 is the last number in it. This extra 
-number 12 does not belong to the value of bf. objdump is just 
-being confused that 78 is an opcode; 78 corresponds to js 
-instruction, and it requires an operand. For that reason, objdump 
-grabs whatever the next byte after 78 and put it there. objdump 
-is a tool to display assembly code after all. A better tool to 
-use is gdb that we will learn in the next chapter. But for this 
-chapter, objdump suffices.
+与`bf`不同的是，`ns`中的每个数据成员都被完整地分配为整型数，每个４个字节，总共16个字节。正如我们所见，位域与普通结构体是不同的：位域结构的数据在位级别，而普通结构体的数据在字节级别。
 
-Unlike bf, each data member in ns is allocated fully as an 
-integer, 4 bytes each, 16 bytes in total. As we can see, bit 
-field and normal struct are different: bit field structure data 
-at the bit level, while normal struct works at byte level.
+最后，`bf2`（bit_field2）的结构与 `bf`（bit_field）相同，只是它多了一个整型数数据成员：`.data5`。为此，单独为`.data5`又分配了另外４个字节，尽管它只能访问其中８位信息，于是`bf2`的最终值为：`12 34 56 78 0f 00 00 00`。其余３个字节必须通过指针的方式访问，或者是转换为可以完全访问所有４个字节的另一种数据类型。
 
-Finally, the struct of bf2[footnote:
-bit_field2
-] is the same of bf[footnote:
-bit_field
-], except it contains one more data member: .data5, and is 
-defined as an integer. For this reason, another 4 bytes are 
-allocated just for .data5, even though it can only access 8 bits 
-of information, and the final value of bf2 is: 12 34 56 78 0f 00 
-00 00. The remaining 3 bytes must be accessed by the mean of a 
-pointer, or casting to another data type that can fully access 
-all 4 bytes..
+习题4.8.1 把`bit_field`结构体以及`bf`变量的定义改为：
 
-What happens when the definition of bit_field struct and bf 
-variable are changed to:
+```c
+struct bit_field {
+    int data1:8;
+};
 
-  struct bit_field {
+struct bit_field bf = {
+    .data1 = 0x1234,
+};
+```
 
-      int data1:8;
+那么`.data1`的值将是多少？
 
-  };
+习题4.8.2 把`bit_field2`结构体的定义更改为：
 
-  struct bit_field bf = {
+```c
+struct bit_field2 {
+    int data1:8;
+    int data5:32;
+};
+```
 
-      .data1 = 0x1234,
-
-  };
-
-  What will be the value of .data1?
-
-  What happens when the definition of bit_field2 struct is 
-  changed to:
-
-  struct bit_field2 {
-
-      int data1:8;
-
-      int data5:32;
-
-  };
-
-  What is layout of a variable of type bit_field2?
+`bit_field2`类型变量的布局是什么样的？
 
   String Data Types
 
@@ -1004,14 +827,14 @@ types:
 
 
 
-uint8_t @|\color{red}\bfseries a8[2]|@ = {0x12, 0x34};
+uint8_t a8[2] = {0x12, 0x34};
 
-uint16_t @|\color{blue}\bfseries a16[2]|@ = {0x1234, 0x5678};
+uint16_t @|\color{blue}\bfseries a16[2] = {0x1234, 0x5678};
 
-uint32_t @|\color{magenta}\bfseries a32[2]|@ = {0x12345678, 
+uint32_t a32[2] = {0x12345678, 
 0x9abcdef0};
 
-uint64_t @|\color{green}\bfseries a64[2]|@ = {0x123456789abcdef0, 
+uint64_t a64[2] = {0x123456789abcdef0, 
 0x123456789abcdef0};
 
 
@@ -1129,7 +952,7 @@ multi-dimensional arrays:
 
 
 
-uint8_t @|\color{red}\bfseries a2[2][2]|@ = {
+uint8_t a2[2][2] = {
 
     {0x12, 0x34},
 
@@ -1139,7 +962,7 @@ uint8_t @|\color{red}\bfseries a2[2][2]|@ = {
 
 
 
-uint8_t @|\color{blue}\bfseries a3[2][2][2]|@ = {
+uint8_t @|\color{blue}\bfseries a3[2][2][2] = {
 
     {{0x12, 0x34},
 
@@ -2102,11 +1925,11 @@ Here is an example to make it more concrete:
 
   Source
 
-  int add(int @|\color{red}\bfseries a|@, int 
-@|\color{green}\bfseries b|@) {
+  int add(int a, int 
+b) {
 
-    int @|\color{blue}\bfseries i|@ = @|\color{red}\bfseries a|@ 
-+ @|\color{green}\bfseries b|@;
+    int @|\color{blue}\bfseries i = a 
++ b;
 
 
 
