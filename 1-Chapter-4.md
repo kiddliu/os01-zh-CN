@@ -744,6 +744,7 @@ struct bit_field2 bf2 = {
 int main(int argc, char *argv[]) {
     return 0;
 }
+```
 
 *汇编代码* 在下面的汇编代码中，每个变量以及它们的值都加上了独有的颜色：
 
@@ -804,265 +805,116 @@ struct bit_field2 {
 
 `bit_field2`类型变量的布局是什么样的？
 
-  String Data Types
+## 4.8.4 字符串数据类型
 
-Although share the same name, string as defined by x86 is 
-different than a string in C. x86 defines string as “continuous 
-sequences of bits, bytes, words, or doublewords”. On the other 
-hand, C defines a string as an array of 1-byte characters with a 
-zero as the last element of the array to make a null-terminated 
-string. This implies that strings in x86 are arrays, not C 
-strings. A programmer can define an array of bytes, words or 
-doublewords with char or uint8_t, short or uint16_t and int or 
-uint32_t, except an array of bits. However, such a feature can be 
-easily implemented, as an array of bits is essentially any array 
-of bytes, or words or doublewords, but operates at the bit level.
+尽管有着同样的名称，然而x86中定义的字符串与Ｃ语言中的不同。x86把字符串定义为“位、字节、单字或双字的连续序列”。而Ｃ语言把字符串定义为单字节字符的数组，并且以零作为数组的最后一个元素，形成以空字符结尾的字符串。这意味着x86中的字符串是数组，而不是Ｃ语言字符串。程序员可以使用`char`或`uint8_t`、`short`或`uint16_t`以及`int`或`uint32_t`定义字节、单字或双字的数组，而位数组除外。然而，这样的特性实现起来很容易，因为位数组本质上是由字节、单字或双字组成的数组，只是在位级别操作而已。
 
-The following code demonstrates how to define array (string) data 
-types:
+下面的代码演示了如何定义数组（字符串）数据类型：
 
-  Source
+*源码*
 
-  #include <stdint.h>
-
-
+```c
+#include <stdint.h>
 
 uint8_t a8[2] = {0x12, 0x34};
-
-uint16_t @|\color{blue}\bfseries a16[2] = {0x1234, 0x5678};
-
-uint32_t a32[2] = {0x12345678, 
-0x9abcdef0};
-
-uint64_t a64[2] = {0x123456789abcdef0, 
-0x123456789abcdef0};
-
-
+uint16_t a16[2] = {0x1234, 0x5678};
+uint32_t a32[2] = {0x12345678, 0x9abcdef0};
+uint64_t a64[2] = {0x123456789abcdef0, 0x123456789abcdef0};
 
 int main(int argc, char *argv[])
-
 {
-
     return 0;
-
 }
+```
 
-  Assembly
+*汇编代码*
 
+```assembly
   0804a018 <a8>:
-
-   804a018: 12 34 00                adc    dh,BYTE PTR 
-  [eax+eax*1]
-
-   804a01b: 00 34 12                add    BYTE PTR 
-  [edx+edx*1],dh
-
+   804a018: 12 34 00                adc    dh,BYTE PTR [eax+eax*1]
+   804a01b: 00 34 12                add    BYTE PTR [edx+edx*1],dh
   0804a01c <a16>:
-
    804a01c: 34 12                   xor    al,0x12
-
    804a01e: 78 56                   js     804a076 <_end+0x3a>
-
   0804a020 <a32>:
-
    804a020: 78 56                   js     804a078 <_end+0x3c>
-
    804a022: 34 12                   xor    al,0x12
-
-   804a024: f0 de bc 9a f0 de bc    lock fidivr WORD PTR 
-  [edx+ebx*4-0x65432110]
-
+   804a024: f0 de bc 9a f0 de bc    lock fidivr WORD PTR [edx+ebx*4-0x65432110]
    804a02b: 9a 
-
   0804a028 <a64>:
-
-   804a028: f0 de bc 9a 78 56 34    lock fidivr WORD PTR 
-  [edx+ebx*4+0x12345678]
-
+   804a028: f0 de bc 9a 78 56 34    lock fidivr WORD PTR [edx+ebx*4+0x12345678]
    804a02f: 12 
-
-   804a030: f0 de bc 9a 78 56 34    lock fidivr WORD PTR 
-  [edx+ebx*4+0x12345678]
-
+   804a030: f0 de bc 9a 78 56 34    lock fidivr WORD PTR [edx+ebx*4+0x12345678]
    804a037: 12 
+```
 
-Despite a8 is an array with 2 elements, each is 1-byte long, but 
-it is still allocated with 4 bytes. Again, to ensure natural 
-alignment for best performance, gcc pads extra zero bytes. As 
-shown in the assembly listing, the actual value of a8 is 12 34 00 
-00, with a8[0] equals to 12 and a8[1] equals to 34.
+尽管`a8`是一个有两个元素的数组，每个元素的长度为１个字节，然而仍然被分配了４个字节。同样的，为了自然对齐从而获得最佳性能，`gcc`会填充额外的零字节。如汇编代码所示，`a8`的实际值为`12 34 00 00`，其中`a8[0]`等于`12`，`a8[1]`等于`34`。
 
-Then it comes a16 with 2 elements, each is 2-byte long. Since 2 
-elements are 4 bytes in total, which is in the natural alignment, 
-gcc pads no byte. The value of a16 is 34 12 78 56, with a16[0] 
-equals to 34 12 and a16[1] equals to 78 56. Note that, objdump is 
-confused again, as de is the opcode for the instruction fidivr 
-(short of reverse divide) that requires another operand, so 
-objdump grabs whatever the next bytes that makes sense to it for 
-creating “an operand”. Only the highlighted values belong to a32. 
+然后是带有两个元素的`a16`，每个元素的长度为两个字节。由于两个元素一共是４个字节，自然对齐，所以`gcc`不填充字节。`a16`的值为`34 12 78 56`，`a16[0]`等于`34 12`，`a16[1]`等于`78 56`。
 
-Next is a32, with 2 elements, 4 bytes each. Similar to above 
-arrays, the value of a32[0] is 78 56 34 12, the value of a32[1] 
-is f0 de bc 9a, exactly what is assigned in the C code.
+接下来是`a32`，有两个元素，每个元素４个字节。与前边的数组类似，`a32[0]`的值为`78 56 34 12`，`a32[1]`的值为`f0 de bc 9a`，正是Ｃ语言代码中赋值的。注意，`objdump`这里又糊涂了，因为`de`是指令`fidivr`的操作码（反向除法的缩写），需要另一个操作数，因此`objdump`抓取任何对它有意义的下一个字节来构建“操作数”。这里，只有突出显示的值属于`a32`。
 
-Finally is a64, also with 2 elements, but 8 bytes each. The total 
-size of a64 is 16 bytes, which is in the natural alignment, 
-therefore no padding bytes added. The values of both a64[0] and 
-a64[1] are the same: f0 de bc 9a 78 56 34 12, that got 
-misinterpreted to fidivr instruction.
+最后是`a64`，也有两个元素，但是每个元素有８个字节。`a64`的总大小为16个字节，是自然对齐的，因此没有填充任何字节。`a64[0]`和`a64[1]`的值相同：`f0 de bc 9a 78 56 34 12`，也被误认为是`fidivr`指令。
 
-[float Figure:
-[Figure 0.13:
-a8, a16, a32 and a64 memory layouts
-]
+![图4.8.4 `a8`、`a16`、`a32`以及`a64`的内存布局](images/04/4.8.4.png)
 
-a8:  
-+----------+
-| 12 | 34  |
-+----------+
+然而，除了直接映射到硬件字符串类型的一维数组之外，Ｃ语言还为多维数组提供了自己的语法：
 
+*源码*
 
-a16: 
-+--------------------+
-| 34 12   | 78 56    |
-+--------------------+
-
-
-a32: 
-+----------------------------------------+
-| 78 56 34 12       | f0 de bc 9a        |
-+----------------------------------------+
-
-
-a64: 
-+---------------------------------------------------------------------------------+
-| f0 de bc 9a 78 56 34 12               | f0 de bc 9a 78 56 34 12   
-             |
-+---------------------------------------------------------------------------------+
-
-]
-
-However, beyond one-dimensional arrays that map directly to 
-hardware string type, C provides its own syntax for 
-multi-dimensional arrays:
-
-  Source
-
-  #include <stdint.h>
-
-
+```c
+#include <stdint.h>
 
 uint8_t a2[2][2] = {
-
     {0x12, 0x34},
-
     {0x56, 0x78}
-
 };
 
-
-
-uint8_t @|\color{blue}\bfseries a3[2][2][2] = {
-
+uint8_t a3[2][2][2] = {
     {{0x12, 0x34},
-
      {0x56, 0x78}},
-
     {{0x9a, 0xbc},
-
      {0xde, 0xff}},
-
 };
-
-
 
 int main(int argc, char *argv[]) {
-
     return 0;
-
 }
+```
 
-  Assembly
+*汇编代码*
 
+```assembly
   0804a018 <a2>:
-
-   804a018: 12 34 56                adc    dh,BYTE PTR 
-  [esi+edx*2]
-
+   804a018: 12 34 56                adc    dh,BYTE PTR [esi+edx*2]
    804a01b: 78 12                   js     804a02f <_end+0x7>
-
   0804a01c <a3>:
-
-   804a01c: 12 34 56                adc    dh,BYTE PTR 
-  [esi+edx*2]
-
-   804a01f: 78 9a                   js     8049fbb 
-  <_DYNAMIC+0xa7>
-
-   804a021: bc                      .byte 0xbc
-
+   804a01c: 12 34 56                adc    dh,BYTE PTR [esi+edx*2]
+   804a01f: 78 9a                   js     8049fbb <_DYNAMIC+0xa7>
+   804a021: bc                      .byte  0xbc
    804a022: de ff                   fdivrp st(7),st
+```
 
-  
+从技术上讲，多维数组跟普通数组一样：最终，总体大小转换为扁平分配的字节。一个２乘２的数组被分配了４个字节；一个２乘２乘２数组被分配了８个字节，如`a2`与`a3`的汇编代码所示（不出所料，`objdump`又搞混了，把数字`12`放在`a3`汇编代码中的`78`旁边。）。在底层汇编代码中，`a[4]`与`a[2][2]`的表达是一摸一样的。然而，在高级的Ｃ语言代码中它们差别巨大。多维数组的语法让程序员可以用更高阶的概念来思考，而不是人工地把高阶概念翻译成底层代码，同时还要在大脑中处理这些高阶概念。
 
-Technically, multi-dimensional arrays are like normal arrays: in 
-the end, the total size is translated into flat allocated bytes. 
-A 2 x 2 array is allocated with 4 bytes; a 2\times2\times2
- array 
-is allocated with 8 bytes, as can be seen in the assembly listing 
-of a2[footnote:
-Again, objdump is confused and put the number 12 next to 78 in a3 
-listing.
-] and a3. In low-level assembly code, the representation is the 
-same between a[4] and a[2][2]. However, in high-level C code, the 
-difference is tremendous. The syntax of multi-dimensional array 
-enables a programmer to think with higher level concepts, instead 
-of translating manually from high-level concepts to low-level 
-code and work with high-level concepts in his head at the same 
-time. 
+示例4.8.1 下列二维数组可以保存长度为10的两个名字的列表：
 
-The following two-dimensional array can hold a list of 2 names 
-with the length of 10:
-
-  char names[2][10] = {
-
+```c
+char names[2][10] = {
     "John Doe",
-
     "Jane Doe"
-
 };
+```
 
-  To access a name, we simply adjust the column index[footnote:
-The left index is called column index since it changes the index 
-based on a column.
-] e.g. names[0], names[1]. To access individual character within 
-  a name, we use the row index[footnote:
-Same with column index, the right index is called row index since 
-it changes the index based on a row.
-] e.g. names[0][0] gives the character “J”, names[0][1] gives the 
-  character “o” and so on.
+要访问某个名字，我们只需调整列索引（左侧索引称为列索引，因为它根据列更改索引）比如`names[0]`，`names[1]`。要访问名字中的单个字符，我们使用行索引（与列索引一样，右索引称为行索引，因为它根据行更改索引。）比如`names[0][0]`得到字符“J”，`names[0][1]`得到字符“o”，依此类推。
 
-  Without such syntax, we need to create a 20-byte array e.g. 
-  names[20], and whenever we want to access a character e.g. to 
-  check if the names contains with a number in it, we need to 
-  calculate the index manually. It would be distracting, since we 
-  constantly need to switch thinkings between the actual problem 
-  and the translate problem. 
+如果没有这样的语法，我们需要创建一个20个字节的数组，例如`names[20]`，每当我们想要访问某个字符时，比如要检查名字里是否包含数字，我们需要手动地计算索引。这会让人分心，因为我们需要不断地在实际问题和翻译后的问题之间转换思路。
 
-  Since this is a repeating pattern, C abstracts away this 
-  problem with the syntax for define and manipulating 
-  multi-dimensional array. Through this example, we can clearly 
-  see the power of abstraction through language can give us. It 
-  would be ideal if a programmer is equipped with such power to 
-  define whatever syntax suitable for a problem at hands. Not 
-  many languages provide such capacity. Fortunately, through C 
-  macro, we can partially achieve that goal .
+既然这是一种重复的模式，Ｃ语言用定义、操作多维数组的语法抽象了这个问题。通过这个例子，我们可以清楚地看到透过编程语言进行的抽象所带来的力量。如果程序员有能力定义适合手头问题的任何语法，那就太完美了。然而，没有多少语言提供了这样的能力。幸运的是，通过Ｃ语言的宏，我们可以部分实现这个目标。
 
-In all cases, an array is guaranteed to generate contiguous bytes 
-of memory, regardless of the dimensions it has.
+在所有情况下，无论数组是几维的，都保证在内存中生成连续的字节。
 
-What is the difference between a multi-dimensional array and an 
-array of pointers, or even pointers of pointers?
+习题4.8.3 多维数组与指针数组，或者指针数组的指针数组有什么区别？
 
   Examine compiled code
 
