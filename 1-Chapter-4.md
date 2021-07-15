@@ -20,7 +20,7 @@ $ objdump -d hello
 $ objdump -D hello
 ```
 
-这里的`-D`选项会显示所有节的汇编内容。如果启用了`-D`，`-d`也就隐式的启用了。`objdump`最常用于检视汇编代码，所以`-d`选项最有用，并因此默认是启用的。
+这里的`-D`选项会显示所有节的汇编内容。如果启用了`-D`，`-d`也就隐式的启用了。`objdump`最常用于检查汇编代码，所以`-d`选项最有用，并因此默认是启用的。
 
 程序的输出太多，会超出终端屏幕的显示范围。为了方便阅读，可以把所有输出发送到`less`：
 
@@ -40,15 +40,15 @@ $ objdump -S hello | less
 $ objdump -M intel -D hello | less
 ```
 
-使用`-M`选项时，必须显式地指明`-D`或是`-d`选项。之后，我们会使用`objdump`来检视编译后的C数据和代码用机器代码是如何表示的。
+使用`-M`选项时，必须显式地指明`-D`或是`-d`选项。之后，我们会使用`objdump`来检查编译后的C数据和代码用机器代码是如何表示的。
 
-最终，我们会写一个32位的内核，因此我们需要编译一个32位的二进制文件，并且在32位模式下检视它：
+最终，我们会写一个32位的内核，因此我们需要编译一个32位的二进制文件，并且在32位模式下检查它：
 
 ```bash
 $ objdump -M i386,intel -D hello | less
 ```
 
-`-M i386`告诉`objdump`用32位布局显示汇编内容。理解32位与64位的差异对于编写内核代码至关重要。我们会在稍后编写我们自己的内核时检视这个问题。
+`-M i386`告诉`objdump`用32位布局显示汇编内容。理解32位与64位的差异对于编写内核代码至关重要。我们会在稍后编写我们自己的内核时检查这个问题。
 
 ## 4.2 读取输出
 
@@ -119,7 +119,7 @@ Disassembly of section .note.gnu.build-id:
 
 ## 4.4 体验汇编代码
 
-接下来的章节会检视汇编指令的组成。为了充分理解它，就有必要写一些代码，然后看看它们以十六进制数字显示的实际形式。为了这个目标，我们用`nasm`汇编器来写几行汇编代码，看看生成的代码是什么样的。
+接下来的章节会检查汇编指令的组成。为了充分理解它，就有必要写一些代码，然后看看它们以十六进制数字显示的实际形式。为了这个目标，我们用`nasm`汇编器来写几行汇编代码，看看生成的代码是什么样的。
 
 ---
 
@@ -135,7 +135,7 @@ jmp eax
 $ nasm -f bin test.asm -o test
 ```
 
-`-f`选项声明了最终输出文件的文件格式，比如ELF。但是在这个例子中，格式是`bin`，意思是这个文件只是一个普通的二进制输出，没有任何额外的信息。也就是说，写出的汇编代码原汁原味的翻译成了机器代码，没有包括类似ELF文件格式一样的额外的元数据。实际上，编译之后我们可以用下面这个命令检视这个输出：
+`-f`选项声明了最终输出文件的文件格式，比如ELF。但是在这个例子中，格式是`bin`，意思是这个文件只是一个普通的二进制输出，没有任何额外的信息。也就是说，写出的汇编代码原汁原味的翻译成了机器代码，没有包括类似ELF文件格式一样的额外的元数据。实际上，编译之后我们可以用下面这个命令检查这个输出：
 
 ```bash
 $ hd test
@@ -527,9 +527,9 @@ ea 34 12 78 56
 
 我们跳过带`REX`前缀的跳转指令，因为它是一个64位指令。
 
-## 4.8 检视编译生成的数据
+## 4.8 检查编译生成的数据
 
-在这一节，我们会检视用Ｃ语言定义的数据是如何映射到它的汇编形式的。这些生成的代码是从`.bss`节抽取出来的。也就是说，展示出来的汇编代码无法执行（实际上，代码只是数据类型的一种，常常用来黑进正在执行的程序从而执行这样的代码。然而，在本书中我们是不会这样做的。），哪怕这样的值可以对应一条可以代表指令的汇编操作码。
+在这一节，我们会检查用Ｃ语言定义的数据是如何映射到它的汇编形式的。这些生成的代码是从`.bss`节抽取出来的。也就是说，展示出来的汇编代码无法执行（实际上，代码只是数据类型的一种，常常用来黑进正在执行的程序从而执行这样的代码。然而，在本书中我们是不会这样做的。），哪怕这样的值可以对应一条可以代表指令的汇编操作码。
 
 代码-汇编列表不是随机定义的，而是基于手册第一卷第四章“数据类型”。这一章列出了x86硬件可以操作的所有基础数据类型，并且通过学习生成的汇编代码，可以了解Ｃ语言的语法与硬件的联系是多么紧密，然后程序员就能理解为什么Ｃ语言适合用来做操作系统开发了。这一节要用到的`objdump`命令是：
 
@@ -916,350 +916,223 @@ char names[2][10] = {
 
 习题4.8.3 多维数组与指针数组，或者指针数组的指针数组有什么区别？
 
-  Examine compiled code
+## 4.9 检查编译后的代码
 
-This section will explore how compiler transform high level code 
-into assembly code that CPU can execute, and see how common 
-assembly patterns help to create higher level syntax. -S option 
-is added to objdump to better demonstrate the connection between 
-high and low level code.
+这一节我们会探讨编译器如何把高级代码转化为CPU可以执行的汇编代码，然后看看常见的汇编模式如何帮助构建高级语法。使用`objdump`的`-S`选项可以更好地展示高、低级代码之间的联系。
 
-In this section, the option --no-show-raw-insn is added to 
-objdump command to omit the opcodes for clarity:
+在这一节，我们向`objdump`命令添加了选项`--no-show-raw-insn`，从而省去了操作码，使输出清晰明了：
 
-
-
+```bash
 $ objdump --no-show-raw-insn -M intel -S -D <object file> | less 
+```
 
+### 4.9.1 数据传输
 
+上一节探讨了各种类型的数据是如何创建的，以及如何在内存中排列的。一旦为变量分配了内存存储空间，它们必须是可访问和可写入的。数据传输指令在内存与寄存器之间，以及寄存器与寄存器之间移动数据（字节、单字、双字或四字），有效地从一个存储源读取并写入另一个存储源。
 
-  Data Transfer
+*源码*
 
-Previous section explores how various types of data are created, 
-and how they are laid out in memory. Once memory storages are 
-allocated for variables, they must be accessible and writable. 
-Data transfer instructions move data (bytes, words, doublewords 
-or quadwords) between memory and registers, and between 
-registers, effectively read from a storage source and write to 
-another storage source.
-
-  Source
-
-  #include <stdint.h>
-
-
+```c
+#include <stdint.h>
 
 int32_t i = 0x12345678;
 
-
-
 int main(int argc, char *argv[]) {
-
-        int j = i;
-
-        int k = 0xabcdef;
-
-
-
-        return 0;
-
+    int j = i;
+    int k = 0xabcdef;
+    return 0;
 }
+```
 
-  Assembly
+*汇编代码*
 
+```assembly
   080483db <main>:
-
-  #include <stdint.h>
-
-  int32_t i = 0x12345678;
-
-  int main(int argc, char *argv[]) {
-
+#include <stdint.h>
+int32_t i = 0x12345678;
+int main(int argc, char *argv[]) {
    80483db:       push   ebp
-
    80483dc:       mov    ebp,esp
-
    80483de:       sub    esp,0x10
-
-          int j = i;
-
+    int j = i;
    80483e1:       mov    eax,ds:0x804a018
-
    80483e6:       mov    DWORD PTR [ebp-0x8],eax
-
-          int k = 0xabcdef;
-
+    int k = 0xabcdef;
    80483e9:       mov    DWORD PTR [ebp-0x4],0xabcdef
-
-          return 0;
-
+    return 0;
    80483f0:       mov    eax,0x0
-
-  }
-
+}
    80483f5:       leave  
-
    80483f6:       ret    
-
    80483f7:       xchg   ax,ax
-
    80483f9:       xchg   ax,ax
-
    80483fb:       xchg   ax,ax
-
    80483fd:       xchg   ax,ax
-
    80483ff:       nop
+```
 
-The general data movement is performed with the mov instruction. 
-Note that despite the instruction being called mov, it actually 
-copies data from one destination to another.
+一般的数据移动是通过`mov`指令进行的。请注意，尽管这个指令被称为`mov`，但是它实际上是把数据从一个目的地复制到另一个目的地。
 
-The red instruction copies data from the register esp to the 
-register ebp. This mov instruction moves data between registers 
-and is assigned the opcode 89.
+红色的指令把数据从寄存器`esp`复制到寄存器`ebp`。这条`mov`指令在寄存器之间移动数据，并被赋予了操作码`89`。
 
-The blue instructions copies data from one memory location (the i 
-variable) to another (the j variable). There exists no data 
-movement from memory to memory; it requires two mov instructions, 
-one for copying the data from a memory location to a register, 
-and one for copying the data from the register to the destination 
-memory location.
+蓝色的指令把数据从一个内存位置（变量`i`）复制到另一个位置（变量`j`）。这里不涉及从内存到内存的数据移动；而是由两条`mov`指令构成，一条用于将数据从内存位置复制到寄存器，另一条用于将数据从寄存器复制到目标内存位置。
 
-The pink instruction copies an immediate value into memory. 
-Finally, the green instruction copies immediate data into a 
-register.
+粉色的指令把一个即时值复制到内存中。最后，绿色的指令把即时数据复制到一个寄存器中。
 
-  Expressions
+### 4.9.2 表达式
 
-  Source
+*源码*
 
-  int expr(int i, int j)
-
+```c
+int expr(int i, int j)
 {
-
-    int add            = i + j;
-
-    int sub            = i - j;
-
-    int mul            = i * j;
-
-    int div            = i / j;
-
-    int mod            = i % j;
-
-    int neg            = -i;
-
-    int and            = i & j;
-
-    int or             = i | j;
-
-    int xor            = i ^ j;
-
-    int not            = ~i;
-
-    int shl            = i << 8;
-
-    int shr            = i >> 8;
-
-    char equal1        = (i == j);
-
-    int equal2         = (i == j);
-
-    char greater       = (i > j);
-
-    char less          = (i < j);
-
+    int add = i + j;
+    int sub = i - j;
+    int mul = i * j;
+    int div = i / j;
+    int mod = i % j;
+    int neg = -i;
+    int and = i & j;
+    int or = i | j;
+    int xor = i ^ j;
+    int not = ~i;
+    int shl = i << 8;
+    int shr = i >> 8;
+    char equal1 = (i == j);
+    int equal2 = (i == j);
+    char greater = (i > j);
+    char less = (i < j);
     char greater_equal = (i >= j);
-
-    char less_equal    = (i <= j);
-
-    int logical_and    = i && j;
-
-    int logical_or     = i || j;
-
+    char less_equal = (i <= j);
+    int logical_and = i && j;
+    int logical_or = i || j;
     ++i;
-
     --i;
-
-    int i1             = i++;
-
-    int i2             = ++i;
-
-    int i3             = i--;
-
-    int i4             = --i;
-
-
+    int i1 = i++;
+    int i2 = ++i;
+    int i3 = i--;
+    int i4 = --i;
 
     return 0;
-
 }
-
-
 
 int main(int argc, char *argv[]) {
-
     return 0;
-
 }
+```
 
-  Assembly
+*汇编代码*
 
-  The full assembly listing is really long. For that reason, we 
-  examine expression by expression.
+完整的汇编代码真的很长。基于这个原因，我们逐条检查表达式。
 
-  Expression: int add = i + j;
+*表达式：* `int add = i + j;`
 
-     80483e1:       mov    edx,DWORD PTR [ebp+0x8]
+```assembly
+  80483e1:       mov    edx,DWORD PTR [ebp+0x8]
+  80483e4:       mov    eax,DWORD PTR [ebp+0xc]
+  80483e7:       add    eax,edx
+  80483e9:       mov    DWORD PTR [ebp-0x34],eax
+```
 
-     80483e4:       mov    eax,DWORD PTR [ebp+0xc]
+这段汇编代码很好懂：变量`i`和`j`分别存放在`eax`和`edx`中，然后用`add`指令对它们相加，最后的结果存放在`eax`中。然后，结果被保存到本地变量`add`中，位置为`[ebp-0x34]`。
 
-     80483e7:       add    eax,edx
+*表达式：* `int sub = i - j;`
 
-     80483e9:       mov    DWORD PTR [ebp-0x34],eax
+```assembly
+  80483ec:       mov    eax,DWORD PTR [ebp+0x8]
+  80483ef:       sub    eax,DWORD PTR [ebp+0xc]
+  80483f2:       mov    DWORD PTR [ebp-0x30],eax
+```
 
-    The assembly code is straight forward: variable i and j are 
-    stored in eax and edx respectively, then added together with 
-    the add instruction, and the final result is stored into eax. 
-    Then, the result is saved into the local variable add, which 
-    is at the location [ebp-0x34].
+与`add`指令类似，x86提供了一条减法的`sub`指令。因此，`gcc`将减法转换为`sub`指令，其中`eax`重新加载为`i`，因为`eax`仍然携带着前一次表达式生成的结果。然后，`j`被减去`i`。减完之后，值被保存到变量`sub`中，位置在`[ebp-0x30]`。
 
-  Expression: int sub = i - j;
+*表达式：* `int mul = i * j;`
 
-    80483ec:       mov    eax,DWORD PTR [ebp+0x8]
+```assembly
+  80483f5:       mov    eax,DWORD PTR [ebp+0x8]
+  80483f8:       imul   eax,DWORD PTR [ebp+0xc]
+  80483fc:       mov    DWORD PTR [ebp-0x34],eax
+```
 
-    80483ef:       sub    eax,DWORD PTR [ebp+0xc]
+与减法类似，只有`eax`被重新加载，因为它还保留着前一次计算的结果。`imul`执行有符号的乘法（无符号的乘法由`mul`指令执行）。`eax`首先加载`i`，然后与`j`相乘，并将结果存回`eax`，然后存到位于`[ebp-0x34]`的变量`mul`中。
 
-    80483f2:       mov    DWORD PTR [ebp-0x30],eax
+*表达式：* `int div = i / j;`
 
-    Similar to add instruction, x86 provides a sub instruction 
-    for subtraction. Hence, gcc translates a subtraction into sub 
-    instruction, with eax is reloaded with i, as eax still 
-    carries the result from previous expression. Then, j is 
-    subtracted from i. After the subtraction, the value is saved 
-    into the variable sub, at location [ebp-0x30].
+```assembly
+  80483ff:       mov    eax,DWORD PTR [ebp+0x8]
+  8048402:       cdq    
+  8048403:       idiv   DWORD PTR [ebp+0xc]
+  8048406:       mov    DWORD PTR [ebp-0x30],eax
+```
 
-  Expression: int mul = i * j;
+与`imul`类似，`idiv`执行有符号的除法。但是，与上面的`imul`不同，`idiv`只需要一个操作数:
 
-    80483f5:       mov    eax,DWORD PTR [ebp+0x8]
+1. 首先，`i`被重新加载到`eax`。
+2. 然后，`cdq`将`eax`中的双字值转换为存储在一对寄存器`edx:eax`中的四字值，方法是将`eax`中值的符号位（即位31）复制到`edx`的每个位上。这一对`edx:eax`是被除数，也就是变量`i`，而`idiv`的操作数是除数，也就是变量`j`。
+3. 计算结束后，结果被存储到这对`edx:eax`寄存器中，其中商在`eax`，余数在`edx`。最后，商被存储到变量`div`中，位置`[ebp-0x30]`。
 
-    80483f8:       imul   eax,DWORD PTR [ebp+0xc]
+*表达式：* `int mod = i % j;`
 
-    80483fc:       mov    DWORD PTR [ebp-0x34],eax
+```assembly
+  8048409:       mov    eax,DWORD PTR [ebp+0x8]
+  804840c:       cdq    
+  804840d:       idiv   DWORD PTR [ebp+0xc]
+  8048410:       mov    DWORD PTR [ebp-0x2c],edx
+```
 
-    Similar to sub instruction, only eax is reloaded, since it 
-    carries the result of previous calculation. imul performs 
-    signed multiply[footnote:
-Unsigned multiply is perform by mul instruction.
-]. eax is first loaded with i, then is multiplied with j and 
-    stored the result back into eax, then stored into the 
-    variable mul at location [ebp-0x34].
+同样的`idiv`指令也可以进行取模运算，因为它也计算余数并存储在位置`[ebp-0x2c]`的变量`mod`中。
 
-  Expression: int div = i / j;
+*表达式：* `int neg = -i;`
 
-    80483ff:       mov    eax,DWORD PTR [ebp+0x8]
+```assembly
+  8048413:       mov    eax,DWORD PTR [ebp+0x8] 
+  8048416:       neg    eax                     
+  8048418:       mov    DWORD PTR [ebp-0x28],eax
+```
 
-    8048402:       cdq    
+`neg`将操作数（目标操作数）的值替换为其2的补码（这个操作相当于用0减去操作数）。在这个例子中，使用`neg`指令将`eax`中的值`i`替换为`-i`。然后，新的数值被储存在`[ebp-0x28]`的变量`neg`中。
 
-    8048403:       idiv   DWORD PTR [ebp+0xc]
+*表达式：* `int and = i & j;`
 
-    8048406:       mov    DWORD PTR [ebp-0x30],eax
+```assembly
+  804841b:       mov    eax,DWORD PTR [ebp+0x8] 
+  804841e:       and    eax,DWORD PTR [ebp+0xc] 
+  8048421:       mov    DWORD PTR [ebp-0x24],eax
+```
 
-    Similar to imul, idiv performs sign divide. But, different 
-    from imul above idiv only takes one operand:
+`and`对两个操作数进行按位与运算，并将结果存入目标操作数，即位于`[ebp-0x24]`的变量`and`处。
 
-    1. First, i is reloaded into eax. 
+*表达式：* `int or = i | j;`
 
-    2. Then, cdq converts the double word value in eax into a 
-      quadword value stored in the pair of registers edx:eax, by 
-      copying the signed (bit 31[superscript:th]) of the value in eax into every bit position in edx. The pair 
-      edx:eax is the dividend, which is the variable i, and the 
-      operand to idiv is the divisor, which is the variable j. 
+```assembly
+  8048424:       mov    eax,DWORD PTR [ebp+0x8] 
+  8048427:       or     eax,DWORD PTR [ebp+0xc] 
+  804842a:       mov    DWORD PTR [ebp-0x20],eax
+```
 
-    3. After the calculation, the result is stored into the pair 
-      edx:eax registers, with the quotient in eax and remainder 
-      in edx. The quotient is stored in the variable div, at 
-      location [ebp-0x30].
+与`and`指令类似，`or`对两个操作数进行按位或操作，并将结果存储在目标操作数中，即位于`[ebp-0x20]`的变量`or`处。
 
-  Expression: int mod = i % j;
+*表达式：* `int xor = i ^ j;`
 
-    8048409:       mov    eax,DWORD PTR [ebp+0x8]
+```assembly
+  804842d:       mov    eax,DWORD PTR [ebp+0x8] 
+  8048430:       xor    eax,DWORD PTR [ebp+0xc] 
+  8048433:       mov    DWORD PTR [ebp-0x1c],eax
+```
 
-    804840c:       cdq    
+与`and`或`or`指令类似，`xor`对两个操作数进行按位异或操作，并将结果存储在目标操作数中，即位于`[ebp-0x1c]`的变量`xor`处。
 
-    804840d:       idiv   DWORD PTR [ebp+0xc]
+*表达式：* `int not = ~i;`
 
-    8048410:       mov    DWORD PTR [ebp-0x2c],edx
+```assembly
+  8048436:       mov    eax,DWORD PTR [ebp+0x8] 
+  8048439:       not    eax                     
+  804843b:       mov    DWORD PTR [ebp-0x18],eax
+```
 
-    The same idiv instruction also performs the modulo operation, 
-    since it also calculates a remainder and stores in the 
-    variable mod, at location [ebp-0x2c].
+`not`对目标操作数进行取反运算（每个`1`被设置为`0`，每个`0`被设置为`1`），并将结果存储在目标操作数位置，即位于`[ebp-0x18]`的变量`not`处。
 
-  Expression: int neg = -i;
 
-    8048413:       mov    eax,DWORD PTR [ebp+0x8] 
-
-    8048416:       neg    eax                     
-
-    8048418:       mov    DWORD PTR [ebp-0x28],eax
-
-    neg replaces the value of operand (the destination operand) 
-    with its two's complement (this operation is equivalent to 
-    subtracting the operand from 0). In this example, the value i 
-    in eax is replaced replaced with -i using neg instruction. 
-    Then, the new value is stored in the variable neg at 
-    [ebp-0x28].
-
-  Expression: int and = i & j;
-
-    804841b:        mov    eax,DWORD PTR [ebp+0x8] 
-
-    804841e:        and    eax,DWORD PTR [ebp+0xc] 
-
-    8048421:        mov    DWORD PTR [ebp-0x24],eax
-
-    and performs a bitwise AND operation on two operands, and 
-    stores the result in the destination operand, which is the 
-    variable and at [ebp-0x24].
-
-  Expression: int or = i | j;
-
-    8048424:       mov    eax,DWORD PTR [ebp+0x8] 
-
-    8048427:       or     eax,DWORD PTR [ebp+0xc] 
-
-    804842a:       mov    DWORD PTR [ebp-0x20],eax
-
-    Similar to and instruction, or performs a bitwise OR 
-    operation on two operands, and stores the result in the 
-    destination operand, which is the variable or at [ebp-0x20] 
-    in this case.
-
-  Expression: int xor = i ^ j;
-
-    804842d:       mov    eax,DWORD PTR [ebp+0x8] 
-
-    8048430:       xor    eax,DWORD PTR [ebp+0xc] 
-
-    8048433:       mov    DWORD PTR [ebp-0x1c],eax
-
-    Similar to and/or instruction, xor performs a bitwise XOR 
-    operation on two operands, and stores the result in the 
-    destination operand, which is the variable xor at [ebp-0x1c].
-
-  Expression: int not = ~i;
-
-    8048436:       mov    eax,DWORD PTR [ebp+0x8] 
-
-    8048439:       not    eax                     
-
-    804843b:       mov    DWORD PTR [ebp-0x18],eax
-
-    not performs a bitwise NOT operation (each 1 is set to 0, and 
-    each 0 is set to 1) on the destination operand and stores the 
-    result in the destination operand location, which is the 
-    variable not at [ebp-0x18]. 
 
   Expression: int shl = i << 8;
 
