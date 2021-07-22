@@ -1132,346 +1132,214 @@ int main(int argc, char *argv[]) {
 
 `not`对目标操作数进行取反运算（每个`1`被设置为`0`，每个`0`被设置为`1`），并将结果存储在目标操作数位置，即位于`[ebp-0x18]`的变量`not`处。
 
+*表达式：* `int shl = i << 8;`
 
+```assembly
+  804843e:       mov    eax,DWORD PTR [ebp+0x8]
+  8048441:       shl    eax,0x8
+  8048444:       mov    DWORD PTR [ebp-0x14],eax
+```
 
-  Expression: int shl = i << 8;
+`shl`（逻辑左移）将目标操作数中的位向左移动，移动量为源操作数中指定的位数。在本例中，`eax`存储`i`，`shl`将`eax`向左移动８位。`shl`的另一个名字是`sal`（左移运算）。二者可以同义使用。最后，结果被存储在变量`shl`中，位置是`[ebp-0x14]`。
 
-    804843e:       mov    eax,DWORD PTR [ebp+0x8]
+下面是`shl/sal`和`shr`指令的图示：
 
-    8048441:	   shl    eax,0x8
+图4.9.1 移位指令（红色是起始位，蓝色是结束位。）
 
-    8048444:	   mov    DWORD PTR [ebp-0x14],eax
+![(a) SHL/SAL （来源: 图 7-6, 第一卷）](images/04/shl_sal.png)
 
-    shl (shift logical left) shifts the bits in the destination 
-    operand to the left by the number of bits specified in the 
-    source operand. In this case, eax stores i and shl shifts eax 
-    by 8 bits to the left. A different name for shl is sal (shift 
-    arithmetic left). Both can be used synonymous. Finally, the 
-    result is stored in the variable shl at [ebp-0x14].
+向左移位后，在EFLAGS寄存器中最右边的位被设置为进位标志。
 
-    Here is a visual demonstration of shl/sal and shr 
-    instructions:
+*表达式：* `int shr = i >> 8;`
 
-    
+```assembly
+  8048447:       mov    eax,DWORD PTR [ebp+0x8]
+  804844a:       sar    eax,0x8
+  804844d:       mov    DWORD PTR [ebp-0x10],eax
+```
 
-    After shifting to the left, the right most bit is set for 
-    Carry Flag in EFLAGS register.
+`sar`与`shl/sal`类似，但向右移位并扩展符号位。对于右移，`shr`和`sar`是两条不同的指令。`shr`与`sar`的不同之处在于它不扩展符号位。最后，结果被存储在变量`shr`中，位置是`[ebp-0x10]`。
 
-  Expression: int shr = i >> 8;
+![(b) SHR（来源: 图 7-7, 第一卷）](images/04/shr.png)
 
-    8048447:       mov    eax,DWORD PTR [ebp+0x8]
+在图 4.9.1（b）中，注意到最初的符号位是１，但在１位和１０位移位后，移出的位被填上了０。
 
-    804844a:   	sar    eax,0x8
+图4.9.2：`SAR`指令操作（来源: 图7-8, 第一卷。）
 
-    804844d:   	mov    DWORD PTR [ebp-0x10],eax
+![`SAR`指令操作](images/04/sar.png)
 
-    sar is similar to shl/sal, but shift bits to the right and 
-    extends the sign bit. For right shift, shr and sar are two 
-    different instructions. shr differs to sar is that it does 
-    not extend the sign bit. Finally, the result is stored in the 
-    variable shr at [ebp-0x10].
+有了`sar`，符号位（最高位）被保留了。也就是说如果符号位是０，新的位总是得到０值；如果符号位是１，新的位总是得到１值。
 
-    In the figure (b), notice that initially, the sign bit is 1, 
-    but after 1-bit and 10-bit shiftings, the shifted-out bits 
-    are filled with zeros.
+*表达式：* `char equal1 = (i == j);`
 
-    [float Figure:
-[Figure 0.14:
-SAR Instruction Operation (Source: Figure 7-8, Volume 1)
-]
+```assembly
+  8048450:       mov    eax,DWORD PTR [ebp+0x8]
+  8048453:       cmp    eax,DWORD PTR [ebp+0xc]
+  8048456:       sete   al                     
+  8048459:       mov    BYTE PTR [ebp-0x41],al
+```
 
-     <Graphics file: C:/Users/Tu Do/os01/book_src/images/04/sar.pdf>
-     
-]
+`cmp`和各种`set`指令的变体可以完成所有的逻辑比较。在这个表达式中，`cmp`对变量`i`和`j`进行比较；如果前面`cmp`的比较结果为相等，`sete`会将值１存入`al`寄存器，否则存入０。`set`指令的变体的一般名称叫做`SETcc`。后缀`cc`表示的是在EFLAGS寄存器中被检查的条件。第一卷附录Ｂ中的“EFLAGS条件代码”列出了可以用该指令测试的条件。最后，结果被存储在`[ebp-0x41]`的变量 `equal1`中。
 
-    With sar, the sign bit (the most significant bit) is 
-    preserved. That is, if the sign bit is 0, the new bits always 
-    get the value 0; if the sign bit is 1, the new bits always 
-    get the value 1.
+*表达式：* `int equal2 = (i == j);`
 
-  Expression: char equal1 = (i == j);
+```assembly
+  804845c:       mov    eax,DWORD PTR [ebp+0x8]
+  804845f:       cmp    eax,DWORD PTR [ebp+0xc]
+  8048462:       sete   al
+  8048465:       movzx  eax,al
+  8048468:       mov    DWORD PTR [ebp-0xc],eax
+```
 
-    8048450:       mov    eax,DWORD PTR [ebp+0x8]
+与相等比较类似，这个表达式也是进行相等比较，不同的是其结果是以`int`类型存储的。由于这个原因，又增加了一条指令：`movzx`指令，这是`mov`的一个变种，它将结果复制到目标操作数中，并将剩余的字节填充为０。在这种情况下，由于`eax`是４字节宽，在复制了`al`中的第一个字节以后，`eax`的其余字节被填充为０，以确保`eax`携带的值与`al`相同。
 
-    8048453:       cmp    eax,DWORD PTR [ebp+0xc]
+![图4.9.3 `movzx`指令](images/04/4.9.3.png)
 
-    8048456:       sete   al                     
+*表达式：* `char greater = (i > j);`
 
-    8048459:       mov    BYTE PTR [ebp-0x41],al
+```assembly
+  804846b:       mov    eax,DWORD PTR [ebp+0x8]
+  804846e:       cmp    eax,DWORD PTR [ebp+0xc]
+  8048471:       setg   al                     
+  8048474:       mov    BYTE PTR [ebp-0x40],al 
+```
 
-    cmp and variants of the variants of set instructions make up 
-    all the logical comparisons. In this expression, cmp compares 
-    variable i and j; then sete stores the value 1 to al register 
-    if the comparison from cmp earlier is equal, or stores 0 
-    otherwise. The general name for variants of set instruction 
-    is called SETcc. The suffix cc denotes the condition being 
-    tested for in EFLAGS register. Appendix B in volume 1, 
-    “EFLAGS Condition Codes”, lists the conditions it is possible 
-    to test for with this instruction. Finally, the result is 
-    stored in the variable equal1 at [ebp-0x41].
+类似于相等比较，使用`setg`指令执行大于比较。
 
-  Expression: int equal2 = (i == j);
+*表达式：* `char less = (i < j);`
 
-    804845c:       mov    eax,DWORD PTR [ebp+0x8]
+```assembly
+  8048477:       mov    eax,DWORD PTR [ebp+0x8]
+  804847a:       cmp    eax,DWORD PTR [ebp+0xc]
+  804847d:       setl   al                     
+  8048480:       mov    BYTE PTR [ebp-0x3f],al 
+```
 
-    804845f:       cmp    eax,DWORD PTR [ebp+0xc]
+使用`setl`指令进行小于比较。
 
-    8048462:       sete   al
+*表达式：* `char greater_equal = (i >= j);`
 
-    8048465:       movzx  eax,al
+```assembly
+  8048483:       mov    eax,DWORD PTR [ebp+0x8]
+  8048486:       cmp    eax,DWORD PTR [ebp+0xc]
+  8048489:       setge  al                     
+  804848c:       mov    BYTE PTR [ebp-0x3e],al 
+```
 
-    8048468:       mov    DWORD PTR [ebp-0xc],eax
+使用`setge`进行大于等于比较。
 
-    Similar to equality comparison, this expression also compares 
-    for equality, with an exception that the result is stored in 
-    an int type. For that reason, one more instruction is a 
-    added: movzx instruction, a variant of mov that copies the 
-    result into a destination operand and fills the remaining 
-    bytes with 0. In this case, since eax is 4-byte wide, after 
-    copying the first byte in al, the remaining bytes of eax are 
-    filled with 0 to ensure the eax carries the same value as al.
+*表达式：* `char less_equal = (i <= j);`
 
-    [float Figure:
-[Figure 0.15:
-movzx instruction
-]     [float Figure:
-[Sub-Figure a:
-eax before movzx
-]
+```assembly
+  8048483:       mov    eax,DWORD PTR [ebp+0x8]
+  8048486:       cmp    eax,DWORD PTR [ebp+0xc]
+  8048489:       setge  al                     
+  804848c:       mov    BYTE PTR [ebp-0x3e],al 
+```
 
+使用`setle`进行小于等于比较。
 
-+-----+-----+-----+----+
-| 12  | 34  | 56  | 78 |
-+-----+-----+-----+----+
+*表达式：* `int logical_and = (i && j);`
 
-]     [float Figure:
-[Sub-Figure b:
-after movzx eax, al
-]
+```assembly
+  804849b:       cmp    DWORD PTR [ebp+0x8],0x0
+  804849f:       je     80484ae <expr+0xd3>    
+  80484a1:       cmp    DWORD PTR [ebp+0xc],0x0
+  80484a5:       je     80484ae <expr+0xd3>    
+  80484a7:       mov    eax,0x1                
+  80484ac:       jmp    80484b3 <expr+0xd8>    
+  80484ae:       mov    eax,0x0                
+  80484b3:       mov    DWORD PTR [ebp-0x8],eax
+```
 
+逻辑与运算符`&&`是完全由软件发明的语法之一（也就是说，在硬件中没有对应的汇编指令实现。）使用相对更简单的指令实现。汇编代码中的算法很简单：
 
-+-----+-----+-----+----+
-| 00  | 00  | 00  | 78 |
-+-----+-----+-----+----+
+1. 首先，用`0x804849b`的指令检查`i`是否为`0`。
+   1. 如果为真，跳转到`0x80484ae`并将`eax`设置为`0`。
+   2. 设置变量`logical_and`为`0`，因为它是`0x80484ae`之后的下一条。
+2. 如果`i`不为`0`，用在`0x80484a1`的指令检查`j`是否为`0`。
+   1. 如果为真，跳到`0x80484ae`并将`eax`设置为`0`。
+   2. 将变量`logical_and`设置为`0`，因为它是下一条指令。
+3. 如果`i`和`j`都不是`0`，结果肯定是`1`，也就是真。
+   1. 用`0x80484a7`的指令相应地设置它。
+   2. 然后跳转到`0x80484b3`的指令来设置位于`[ebp-0x8]`处的变量`logical_and`为`1`。
 
-]     
-]
+*表达式：* `int logical_or = (i || j);`
 
-  Expression: char greater = (i > j);
+```assembly
+  80484b6:       cmp    DWORD PTR [ebp+0x8],0x0
+  80484ba:       jne    80484c2 <expr+0xe7>    
+  80484bc:       cmp    DWORD PTR [ebp+0xc],0x0
+  80484c0:       je     80484c9 <expr+0xee>    
+  80484c2:       mov    eax,0x1                
+  80484c7:       jmp    80484ce <expr+0xf3>    
+  80484c9:       mov    eax,0x0                
+  80484ce:       mov    DWORD PTR [ebp-0x4],eax
+```
 
-    804846b:       mov    eax,DWORD PTR [ebp+0x8]
+逻辑或运算符`||`与上面的逻辑与类似。理解这个算法留给读者们练习吧。
 
-    804846e:       cmp    eax,DWORD PTR [ebp+0xc]
+*表达式：* `++i;`与`--i;`（或者`i++`与`i--`）
 
-    8048471:       setg   al                     
+```assembly
+  80484d1:       add    DWORD PTR [ebp+0x8],0x1
+  80484d5:       sub    DWORD PTR [ebp+0x8],0x1
+```
 
-    8048474:       mov    BYTE PTR [ebp-0x40],al 
+自增与自减的语法与逻辑与和逻辑或类似，是由已有的指令组成的，即`add`。区别在于CPU实际上确实有一条内建指令，但是因为`inc`和`dec`会导致部分标志寄存器迟滞，`gcc`决定不使用它，当一条指令修改了标志寄存器的一部分，而下一条指令又依赖于标志的结果时，就会发生迟滞（3.5.2.6节，Intel优化手册，2016）。手册甚至建议`inc`和`dec`指令应该被替换成`add`和`sub`指令（3.5.1.1节，英特尔优化手册，2016）。
 
-    Similar to equality comparison, but used setg for greater 
-    comparison instead.
+*表达式：* `int i1 = i++;`
 
-  Expression: char less = (i < j);
+```assembly
+  80484d9:       mov    eax,DWORD PTR [ebp+0x8]
+  80484dc:       lea    edx,[eax+0x1]
+  80484df:       mov    DWORD PTR [ebp+0x8],edx
+  80484e2:       mov    DWORD PTR [ebp-0x10],eax
+```
 
-    8048477:       mov    eax,DWORD PTR [ebp+0x8]
+首先，在`80484d9`处，`i`被复制到的`eax`中。然后，在`80484dc`处,`eax + 0x1`的值被复制到edx作为有效地址。`lea`（加载有效地址）指令将一个内存地址复制到一个寄存器中。根据第二卷，指令的源操作数是一个使用某种处理器寻址模式指定的内存地址。这意味着，源操作数必须由16位/32位ModR/M字节表表4.5.1和表4.5.2中定义的寻址模式指定。
 
-    804847a:       cmp    eax,DWORD PTR [ebp+0xc]
+在将自增值装入`edx`后，在80484df处`i`的值加`1`。最后，之前的`i`值被位于`80484e2`的指令存储回`[ebp-0x8]`的`i1`中。
 
-    804847d:       setl   al                     
+*表达式：* `int i2 = ++i;`
 
-    8048480:       mov    BYTE PTR [ebp-0x3f],al 
+```assembly
+  80484e5:       add    DWORD PTR [ebp+0x8],0x1
+  80484e9:       mov    eax,DWORD PTR [ebp+0x8]
+  80484ec:       mov    DWORD PTR [ebp-0xc],eax
+```
 
-    Applied setl for less comparison.
+这个自增语法与前一个语法的主要区别在于：
 
-  Expression: char greater_equal = (i >= j);
+* 使用`add`而不是`lea`来直接增加`i`。
+* 新增加的`i`被存储在`i2`中，而不是旧的值。
+* 这个表达式只花费３条指令，而不是４条。
 
-    8048483:       mov    eax,DWORD PTR [ebp+0x8]
+这种前自增的语法比之前使用的后自增语法要快。如果在一个小循环中只使用一次或是几百次自增，使用哪个版本可能并不重要，但当一个循环运行几百万次或更多次时，就很重要了。另外，根据不同的情况，使用某一个要比另一个更方便，例如，如果`i`是访问数组的索引，我们希望使用旧的值来访问前一个数组元素，而使用新自增的`i`来访问当前元素。
 
-    8048486:       cmp    eax,DWORD PTR [ebp+0xc]
+*表达式：* `int i3 = i--;`
 
-    8048489:       setge  al                     
+```assembly
+  80484ef:       mov    eax,DWORD PTR [ebp+0x8]
+  80484f2:       lea    edx,[eax-0x1]
+  80484f5:       mov    DWORD PTR [ebp+0x8],edx
+  80484f8:       mov    DWORD PTR [ebp-0x8],eax
+```
 
-    804848c:       mov    BYTE PTR [ebp-0x3e],al 
+与`i++`语法类似，留给读者们练习吧。
 
-    Applied setge for greater or equal comparison.
+*表达式：* `int i4 = --i;`
 
-  Expression: char less_equal = (i <= j);
+```assembly
+  80484fb:       sub    DWORD PTR [ebp+0x8],0x1
+  80484ff:       mov    eax,DWORD PTR [ebp+0x8]
+  8048502:       mov    DWORD PTR [ebp-0x4],eax
+```
 
-    804848f:       mov    eax,DWORD PTR [ebp+0x8]
+与`++i`语法类似，留给读者们练习吧。
 
-    8048492:       cmp    eax,DWORD PTR [ebp+0xc]
-
-    8048495:       setle  al
-
-    8048498:       mov    BYTE PTR [ebp-0x3d],al
-
-    Applied setle for less than or equal comparison.
-
-  Expression: int logical_and = (i && j);
-
-    804849b:       cmp    DWORD PTR [ebp+0x8],0x0
-
-    804849f:       je     80484ae <expr+0xd3>    
-
-    80484a1:       cmp    DWORD PTR [ebp+0xc],0x0
-
-    80484a5:       je     80484ae <expr+0xd3>    
-
-    80484a7:       mov    eax,0x1                
-
-    80484ac:       jmp    80484b3 <expr+0xd8>    
-
-    80484ae:       mov    eax,0x0                
-
-    80484b3:       mov    DWORD PTR [ebp-0x8],eax
-
-    Logical AND operator && is one of the syntaxes that is made 
-    entirely in software[footnote:
-That is, there is no equivalent assembly instruction implemented 
-in hardware.
-] with simpler instructions. The algorithm from the assembly code 
-    is simple:
-
-    1. First, check if i is 0 with the instruction at 0x804849b. 
-
-      (a) If true, jump to 0x80484ae and set eax to 0. 
-
-      (b) Set the variable logical_and to 0, as it is the next 
-        instruction after 0x80484ae.
-
-    2. If i is not 0, check if j is 0 with the instruction at 
-      0x80484a1. 
-
-      (a) If true, jump to 0x80484ae and set eax to 0.
-
-      (b) Set the variable logical_and to 0, as it is the next 
-        instruction after 0x80484ae.
-
-    3. If both i and j are not 0, the result is certainly 1, or 
-      true.
-
-      (a) Set it accordingly with the instruction at 0x80484a7. 
-
-      (b) Then jump to the instruction at 0x80484b3 to set the 
-        variable logical_and at [ebp-0x8] to 1.
-
-  Expression: int logical_or = (i || j);
-
-    80484b6:       cmp    DWORD PTR [ebp+0x8],0x0
-
-    80484ba:       jne    80484c2 <expr+0xe7>    
-
-    80484bc:       cmp    DWORD PTR [ebp+0xc],0x0
-
-    80484c0:       je     80484c9 <expr+0xee>    
-
-    80484c2:       mov    eax,0x1                
-
-    80484c7:       jmp    80484ce <expr+0xf3>    
-
-    80484c9:       mov    eax,0x0                
-
-    80484ce:       mov    DWORD PTR [ebp-0x4],eax
-
-    Logical OR operator || is similar to logical and above. 
-    Understand the algorithm is left as an exercise for readers.
-
-  Expression: ++i; and --i; (or i++ and i--)
-
-    80484d1:       add    DWORD PTR [ebp+0x8],0x1
-
-    80484d5:       sub    DWORD PTR [ebp+0x8],0x1
-
-    The syntax of increment and decrement is similar to logical 
-    AND and logical OR in that it is made from existing 
-    instruction, that is add. The difference is that the CPU 
-    actually does has a built-in instruction, but gcc decided not 
-    to use the instruction because inc and dec cause a partial 
-    flag register stall, occurs when an instruction modifies a 
-    part of the flag register and the following instruction is 
-    dependent on the outcome of the flags (section 3.5.2.6, Intel Optimization Manual, 2016
-    ). The manual even suggests that inc and dec should be 
-    replaced with add and sub instructions (section 3.5.1.1, Intel Optimization Manual, 2016
-    ). 
-
-  Expression: int i1 = i++;
-
-    80484d9:       mov    eax,DWORD PTR [ebp+0x8]
-
-    80484dc:       lea    edx,[eax+0x1]
-
-    80484df:       mov    DWORD PTR [ebp+0x8],edx
-
-    80484e2:       mov    DWORD PTR [ebp-0x10],eax
-
-    First, i is copied into eax at 80484d9. Then, the value of 
-    eax + 0x1 is copied into edx as an effective address at 
-    80484dc. The lea (load effective address) instruction copies 
-    a memory address into a register. According to Volume 2, the 
-    source operand is a memory address specified with one of the 
-    processors addressing modes. This means, the source operand 
-    must be specified by the addressing modes defined in 
-    16-bit/32-bit ModR/M Byte tables, [mod-rm-16] and [mod-rm-32]
-    .
-
-    After loading the incremented value into edx, the value of i 
-    is increased by 1 at 80484df. Finally, the previous i value 
-    is stored back to i1 at [ebp-0x8] by the instruction at 
-    80484e2.
-
-  Expression: int i2 = ++i;
-
-    80484e5:       add    DWORD PTR [ebp+0x8],0x1
-
-    80484e9:       mov    eax,DWORD PTR [ebp+0x8]
-
-    80484ec:       mov    DWORD PTR [ebp-0xc],eax
-
-    The primary differences between this increment syntax and the 
-    previous one are:
-
-    • add is used instead of lea to increase i directly.
-
-    • the newly incremented i is stored into i2 instead of the 
-      old value.
-
-    • the expression only costs 3 instructions instead of 4.
-
-    This prefix-increment syntax is faster than the post-fix one 
-    used previously. It might not matter much which version to 
-    use if the increment is only used once or a few hundred times 
-    in a small loop, but it matters when a loop runs millions or 
-    more times. Also, depends on different circumstances, it is 
-    more convenient to use one over the other e.g. if i is an 
-    index for accessing an array, we want to use the old value 
-    for accessing previous array element and newly incremented i 
-    for current element.
-
-  Expression: int i3 = i--;
-
-    80484ef:       mov    eax,DWORD PTR [ebp+0x8]
-
-    80484f2:       lea    edx,[eax-0x1]
-
-    80484f5:       mov    DWORD PTR [ebp+0x8],edx
-
-    80484f8:       mov    DWORD PTR [ebp-0x8],eax
-
-    Similar to i++ syntax, and is left as an exercise to readers.
-
-  Expression: int i4 = --i;
-
-    80484fb:       sub    DWORD PTR [ebp+0x8],0x1
-
-    80484ff:       mov    eax,DWORD PTR [ebp+0x8]
-
-    8048502:       mov    DWORD PTR [ebp-0x4],eax
-
-    Similar to ++i syntax, and is left as an exercise to readers.
-
-Read section 3.5.2.4, “Partial Register Stalls” to understand 
-register stalls in general.
-
-  Read the sections from 7.3.1 to 7.3.7 in volume 1.
+习题4.9.1 阅读3.5.2.4节，"部分寄存器停顿"，了解一般的寄存器停顿。
+习题4.9.2 阅读第一卷中7.3.1到7.3.7章节。
 
   Stack
 
