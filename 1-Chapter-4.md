@@ -1341,280 +1341,103 @@ int main(int argc, char *argv[]) {
 习题4.9.1 阅读3.5.2.4节，"部分寄存器停顿"，了解一般的寄存器停顿。
 习题4.9.2 阅读第一卷中7.3.1到7.3.7章节。
 
-  Stack
+## 4.9.3 堆栈
 
-A stack is a contiguous array of memory locations that holds a 
-collection of discrete data. When a new element is added, a stack 
-grows down in memory toward lesser addresses, and shrinks up 
-toward greater addresses when an element is removed. x86 uses the 
-esp register to point to the top of the stack, at the newest 
-element. A stack can be originated anywhere in main memory, as 
-esp can be set to any memory address. x86 provides two operations 
-for manipulating stacks: 
+堆栈是连续的内存数组，用于保存离散的数据。每当一个新元素被添加进来，堆栈向内存中地址较小的方向增长，而当一个元素被移除时向较大的地址收缩。x86使用`esp`寄存器指向对战的顶部，即指向最新的元素。由于`esp`可以指向任何内存地址，堆栈于是可以在内存的任何地方构建。x86提供了两种操作来处理堆栈：
 
-• push instruction and its variants add a new element on top of 
-  the stack
+* push指令及其变体在堆栈顶部添加一个新元素。
+* pop指令及其变体从堆栈中移除顶部的元素。
 
-• pop instructions and its variants remove the top-most element 
-  from the stack.
+![图4.9.4 堆栈操作](images/04/4.9.4.png)
 
+## 4.9.4 自动变量
 
+局部变量是存在于某个作用域内的变量。而作用域是由一对大括号划定：{..}。 定义局部变量最常见的作用域是函数作用域。然而作用域可以是匿名的，在匿名的作用域内创建的变量不存在于其作用域以及其内部作用域之外。
 
+示例4.9.1 函数作用域：
 
-
-
-+----------+----+                      
-| 0x10000  | 00 |                      
-+----------+----+                      
-| 0x10001  | 00 |                      
-+----------+----+                      
-| 0x10002  | 00 |                      
-+----------+----+                      
-| 0x10003  | 00 |                      
-+----------+----+               +-----+
-| 0x10004  | 12 |  \leftarrow
-  | esp |
-+----------+----+               +-----+
-
-
-     
-
-
-+----------+----+                      
-| 0x10000  | 00 |                      
-+----------+----+                      
-| 0x10001  | 00 |                      
-+----------+----+               +-----+
-| 0x10002  | 78 |  \leftarrow
-  | esp |
-                                +-----+
-+----------+----+                      
-| 0x10003  | 56 |                      
-+----------+----+                      
-| 0x10004  | 12 |                      
-+----------+----+                      
-
-
-     
-
-
-+----------+----+                      
-| 0x10000  | 00 |                      
-+----------+----+                      
-| 0x10001  | 00 |                      
-+----------+----+                      
-| 0x10002  | 00 |                      
-+----------+----+                      
-| 0x10003  | 00 |                      
-+----------+----+               +-----+
-| 0x10004  | 12 |  \leftarrow
-  | esp |
-+----------+----+               +-----+
-
-
-
-
-  Automatic variables
-
-Local variables are variables that exist within a scope. A scope 
-is delimited by a pair of braces: {..}. The most common scope to 
-define local variables is at function scope. However, scope can 
-be unnamed, and variables created inside an unnamed scope do not 
-exist outside of its scope and its inner scope. 
-
-Function scope:
-
-  void foo() {
-
+```c
+void foo() {
     int a;
-
     int b;
-
 }
+```
 
-  a and b are variables local to the function foo.
+`a`和`b`是函数`foo`的局部变量。
 
+示例4.9.1 匿名作用域：
 
-
-Unnamed scope:
-
-  int foo() {
-
+```c
+int foo() {
     int i;
 
-
-
     {
-
         int a = 1;
-
         int b = 2;
-
         {
-
             return i = a + b;
-
         }
-
     }
-
 }
+```
 
-  a and b are local to where it is defined and local into its 
-  inner child scope that return i = a + b. However, they do not 
-  exist at the function scope that creates i.
+`a`和`b`在它们被定义的地方以及返回`i = a + b`的内部子作用域内都是局部的。然而，它们并不存在于创建`i`的函数作用域。
 
-When a local variable is created, it is pushed on the stack; when 
-a local variable goes out of scope, it is pop out of the stack, 
-thus destroyed. When an argument is passed from a caller to a 
-callee, it is pushed on the stack; when a callee returns to the 
-caller, the arguments are popped out the stack. The local 
-variables and arguments are automatically allocated upon enter a 
-function and destroyed after exiting a function, that's why it's 
-called automatic variables.
+每当创建一个局部变量，它被推入到堆栈上；当一个局部变量离开作用域时，它从堆栈中被弹出，从而被销毁。当一个参数从调用函数传给被调用函数时，它被推入到堆栈上；当被调用函数把执行权返还给调用函数时，参数从堆栈中被弹出。局部变量和参数在进入函数时自动分配空间，并在退出函数后自动销毁，这就是为什么它被称为自动变量。
 
-A base frame pointer points to the start of the current function 
-frame, and is kept in ebp register. Whenever a function is 
-called, it is allocated with its own dedicated storage on stack, 
-called stack frame. A stack frame is where all local variables 
-and arguments of a function are placed on a stack[footnote:
-Data and only data are exclusively allocated on stack for every 
-stack frame. No code resides here.
-]. 
+基准帧指针指向当前函数帧的起始位置，并被保存在`ebp`寄存器中。每当一个函数被调用，它都会在堆栈上分配自己的专用存储空间，称为堆栈帧。堆栈帧是一个函数的所有局部变量和参数被放置在堆栈上的地方（每个堆栈帧的数据且只有数据被专门分配在堆栈上。这里没有任何代码。）。
 
-When a function needs a local variable or an argument, it uses 
-ebp to access a variable:
+当一个函数需要一个局部变量或一个参数时，它使用`ebp`来访问一个变量：
 
-• All local variables are allocated after the ebp pointer. Thus, 
-  to access a local variable, a number is subtracted from ebp to 
-  reach the location of the variable. 
+* 所有的局部变量都被分配在`ebp`指针之后。因此，要访问一个局部变量，就需要从`ebp`位置减去某个数字，从而访问该变量的位置。
+* 所有的参数都被分配在`ebp`指针之前。要访问某个参数，就需要从`ebp`位置加上一个数字，从而访问该参数的位置。
+* `ebp`指针本身指向调用函数的返回地址。
 
-• All arguments are allocated before ebp pointer. To access an 
-  argument, a number is added to ebp to reach the location of the 
-  argument. 
+![图4.9.5 函数实参与局部变量](images/04/4.9.5.png)
 
-• The ebp itself pointer points to the return address of its 
-  caller.
+下面看一个更加具体的例子：
 
+*代码*
 
-
-
-+--------------------------------------+---------------------------------------------------------------------------+
-|           Previous Frame             |                               Current Frame                               |
-+--------------------------------------+-----------------------------+----------+----------------------------------+
-|         Function Arguments           |                             |   ebp    |         Local variables          |
-+-----+-----+-----+-----------+--------+-----------------------------+----------+-----+-----+-----+-----------+----+
-| A1  | A2  | A3  | ........  |  An    |       Return Address        | Old ebp  | L1  | L2  | L3  | ........  | Ln |
-+-----+-----+-----+-----------+--------+-----------------------------+----------+-----+-----+-----+-----------+----+
-
-
-
-
-A = Argument
-
-L = Local Variable
-
-Here is an example to make it more concrete:
-
-  Source
-
-  int add(int a, int 
-b) {
-
-    int @|\color{blue}\bfseries i = a 
-+ b;
-
-
+```c
+int add(int a, int b) {
+    int i = a + b;
 
     return i;
-
 }
+```
 
-  Assembly
+*汇编代码*
 
-  080483db <add>:
-
+```assembly
+080483db <add>:
   #include <stdint.h>
-
   int add(int a, int b) {
-
    80483db:       push   ebp
-
    80483dc:       mov    ebp,esp
-
    80483de:       sub    esp,0x10
-
       int i = a + b;
-
    80483e1:       mov    edx,DWORD PTR [ebp+0x8]
-
    80483e4:       mov    eax,DWORD PTR [ebp+0xc]
-
    80483e7:       add    eax,edx
-
    80483e9:       mov    DWORD PTR [ebp-0x4],eax
-
       return i;
-
    80483ec:       mov    eax,DWORD PTR [ebp-0x4]
-
   }
-
    80483ef:       leave  
-
    80483f0:       ret    
+```
 
-In the assembly listing, [ebp-0x4] is the local variable i, since 
-it is allocated after ebp, with the length of 4 bytes (an int). 
-On the other hand, a and b are arguments and can be accessed with 
-ebp: 
+在汇编代码中，`[ebp-0x4]`是局部变量`i`，因为它被分配在`ebp`位置之后，长度为４字节（一个整型数）。另一方面，`a`和`b`是参数，可以通过`ebp`访问:
 
-• [ebp+0x8] accesses a.
+* `[ebp+0x8]`访问a。
+* `[ebp+0xc]`访问b。
 
-• [ebp+0xc] access b.
+访问参数时，规则是堆栈中距离`ebp`越近的变量，它与函数名字的距离也就越近。
 
-For accessing arguments, the rule is that the closer a variable 
-on stack to ebp, the closer it is to a function name. 
+![图4.9.6 内存中的函数实参与局部变量](images/04/4.9.6.png)
 
-
-
-
-                       +-------------------+            +-------------------+            +-------------------+            +-------------------+
-                       |      ebp+0xc      |            |      ebp+0x8      |            |      ebp+0x4      |            |        ebp        |
-                       +-------------------+            +-------------------+            +-------------------+            +-------------------+
-                                                                                                                                ---------------
-                               \downarrow
-                      \downarrow
-                      \downarrow
-                      \downarrow
-  
-+----------+-----+-----+-----+--------------+-----+-----+-----+--------------+-----+-----+-----+--------------+-----+-----+-----+-------------+
-|          | 00  | 01  | 02  |     03       | 04  | 05  | 06  |     07       | 08  | 09  | 0a  |     0b       | 0c  | 0d  | 0e  |     0f      |
-+----------+--------------------------------+--------------------------------+--------------------------------+-------------------------------+
-| 0x10000  |               b                |               a                |        Return Address          |            Old ebp            |
-+----------+--------------------------------+--------------------------------+--------------------------------+-------------------------------+
-                                                                                                                                               
-                                                                                         +-------------------+            +-------------------+
-                                                                                         |      ebp+0x8      |            |      ebp+0x4      |
-                                                                                         +-------------------+            +-------------------+
-                                                                                                 \downarrow
-                      \downarrow
-  
-+----------+-----+-----+-----+--------------+-----+-----+-----+--------------+-----+-----+-----+--------------+-----+-----+-----+-------------+
-|          | 00  | 01  | 02  |     03       | 04  | 05  | 06  |     07       | 08  | 09  | 0a  |     0b       | 0c  | 0d  | 0e  |     0f      |
-                                                                             +-----                           +-----            +-------------+
-+----------+-----+-----+-----+--------------+-----+-----+-----+--------------+-----+-----+-----+--------------+-------------------------------+
-|  0xffe0  |     |     |     |              |     |     |     |              |     |     |     |      N       |               i               |
-+----------+-----+-----+-----+--------------+-----+-----+-----+--------------+-----+-----+-----+--------------+-------------------------------+
-
-
-
-
-N = Next local variable starts here
-
-From the figure, we can see that a and b are laid out in memory 
-with the exact order as written in C, relative to the return 
-address. 
+从图中我们可以看到，相对于返回地址`a`和`b`在内存中的布局顺序与Ｃ语言中的书写顺序完全一致。
 
   Function Call and Return<sub:Function-Call-and>
 
