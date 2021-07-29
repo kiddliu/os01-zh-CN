@@ -1341,7 +1341,7 @@ int main(int argc, char *argv[]) {
 习题4.9.1 阅读3.5.2.4节，"部分寄存器停顿"，了解一般的寄存器停顿。
 习题4.9.2 阅读第一卷中7.3.1到7.3.7章节。
 
-## 4.9.3 堆栈
+### 4.9.3 堆栈
 
 堆栈是连续的内存数组，用于保存离散的数据。每当一个新元素被添加进来，堆栈向内存中地址较小的方向增长，而当一个元素被移除时向较大的地址收缩。x86使用`esp`寄存器指向对战的顶部，即指向最新的元素。由于`esp`可以指向任何内存地址，堆栈于是可以在内存的任何地方构建。x86提供了两种操作来处理堆栈：
 
@@ -1350,7 +1350,7 @@ int main(int argc, char *argv[]) {
 
 ![图4.9.4 堆栈操作](images/04/4.9.4.png)
 
-## 4.9.4 自动变量
+### 4.9.4 自动变量
 
 局部变量是存在于某个作用域内的变量。而作用域是由一对大括号划定：{..}。 定义局部变量最常见的作用域是函数作用域。然而作用域可以是匿名的，在匿名的作用域内创建的变量不存在于其作用域以及其内部作用域之外。
 
@@ -1439,125 +1439,69 @@ int add(int a, int b) {
 
 从图中我们可以看到，相对于返回地址`a`和`b`在内存中的布局顺序与Ｃ语言中的书写顺序完全一致。
 
-  Function Call and Return<sub:Function-Call-and>
+### 4.9.5 函数调用与返回
 
-  Source 
+*代码*
 
-  #include <stdio.h>
-
-
-
-int add(int a, int b) {
-
-    int local = 0x12345;
-
-
-
-    return a + b;
-
-}
-
-
-
-int main(int argc, char *argv[]) {
-
-    add(1,1);
-
-
-
-    return 0;
-
-}
-
-  Assembly
-
-  For every function call, gcc pushes arguments on the stack in 
-  reversed order with the push instructions. That is, the 
-  arguments pushed on stack are in reserved order as it is 
-  written in high level C code, to ensure the relative order 
-  between arguments, as seen in previous section how function 
-  arguments and local variables are laid out. Then, gcc generates 
-  a call instruction, which then implicitly pushes a return 
-  address before transferring the control to add function:
-
-  080483f2 <main>:
-
-  int main(int argc, char *argv[]) {
-
-   80483f2:       push   ebp
-
-   80483f3:       mov    ebp,esp
-
-      add(1,2);
-
-   80483f5:       push   0x2
-
-   80483f7:       push   0x1
-
-   80483f9:       call   80483db <add>
-
-   80483fe:       add    esp,0x8
-
-      return 0;
-
-   8048401:       mov    eax,0x0
-
-  }
-
-   8048406:       leave  
-
-   8048407:       ret    
-
-Upon finishing the call to add function, the stack is restored by 
-adding 0x8 to stack pointer esp (which is equivalent to 2 pop 
-instructions). Finally, a leave instruction is executed and main 
-returns with a ret instruction. A ret instruction transfers the 
-program execution back to the caller to the instruction right 
-after the call instruction, the add instruction. The reason ret 
-can return to such location is that the return address implicitly 
-pushed by the call instruction, which is the address right after 
-the call instruction; whenever the CPU executes ret instruction, 
-it retrieves the return address that sits right after all the 
-arguments on the stack:
-
-At the end of a function, gcc places a leave instruction to clean 
-up all spaces allocated for local variables and restore the frame 
-pointer to frame pointer of the caller.
-
-080483db <add>:
-
+```c
 #include <stdio.h>
 
 int add(int a, int b) {
-
- 80483db:       push   ebp
-
- 80483dc:       mov    ebp,esp
-
- 80483de:       sub    esp,0x10
-
     int local = 0x12345;
-
- 80483e1:       DWORD PTR [ebp-0x4],0x12345
-
     return a + b;
-
- 80483e8:       mov    edx,DWORD PTR [ebp+0x8]
-
- 80483eb:       mov    eax,DWORD PTR [ebp+0xc]
-
- 80483ee:       add    eax,edx
-
 }
 
+int main(int argc, char *argv[]) {
+    add(1, 1);
+
+    return 0;
+}
+```
+
+*汇编代码* 对于每个函数的调用，`gcc`都会用`push`指令将参数以相反的顺序推送到堆栈中。也就是说，推入堆栈的参数保持了高级的Ｃ语言代码中的顺序以确保参数之间的相对顺序，印证了上一节中看到的函数参数与局部变量的布局。然后，`gcc`生成一条`call`指令，在将控制权交给`add`函数之前，隐式地推送了一个返回地址。
+
+```assembly
+080483f2 <main>:
+  int main(int argc, char *argv[]) {
+   80483f2:       push   ebp
+   80483f3:       mov    ebp,esp
+      add(1, 2);
+   80483f5:       push   0x2
+   80483f7:       push   0x1
+   80483f9:       call   80483db <add>
+   80483fe:       add    esp,0x8
+      return 0;
+   8048401:       mov    eax,0x0
+  }
+   8048406:       leave  
+   8048407:       ret
+```
+
+在完成对`add`函数的调用后，通过向堆栈指针`esp`加上了0x8来恢复堆栈（这相当于两条`pop`指令）。最后，执行一个`leave`指令，而`main`以`ret`指令返回。`ret`指令将程序的执行转移回调用函数，至紧随`call`指令之后的指令，即`add`指令。`ret`之所以能返回到这样的位置，是因为调用指令隐式推送了返回地址，也就是紧随`call`指令之后的地址；每当CPU执行`ret`指令时，就会检索到位于堆栈上所有参数之后的返回地址。
+
+在函数结束时，`gcc`会放置一条`leave`指令来清理所有分配给局部变量的空间，并将帧指针恢复到调用者的帧指针。
+
+```assembly
+080483db <add>:
+#include <stdio.h>
+int add(int a, int b) {
+ 80483db:       push   ebp
+ 80483dc:       mov    ebp,esp
+ 80483de:       sub    esp,0x10
+    int local = 0x12345;
+ 80483e1:       DWORD PTR [ebp-0x4],0x12345
+    return a + b;
+ 80483e8:       mov    edx,DWORD PTR [ebp+0x8]
+ 80483eb:       mov    eax,DWORD PTR [ebp+0xc]
+ 80483ee:       add    eax,edx
+}
  80483f0:       leave  
-
  80483f1:       ret 
+```
 
-The above code that gcc generated for function calling is 
-actually the standard method x86 defined. Read chapter 6, “
-Produce Calls, Interrupts, and Exceptions”, Intel manual volume 
-1.
+习题4.9.3 上面`gcc`生成的函数调用的代码实际上是x86定义的标准方法。请阅读Intel手册第一卷第六章，"产生调用、中断和异常"。
+
+
 
   Loop
 
