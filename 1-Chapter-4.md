@@ -1501,192 +1501,113 @@ int add(int a, int b) {
 
 习题4.9.3 上面`gcc`生成的函数调用的代码实际上是x86定义的标准方法。请阅读Intel手册第一卷第六章，"产生调用、中断和异常"。
 
+### 4.9.6 循环
 
+循环很简单，它把指令指针重新指向已经执行过的指令上，然后从那里重新开始。循环只是`jmp`指令的一种应用。然而由于循环是一种普遍存在的模式，于是它在Ｃ语言中有了自己的语法。
 
-  Loop
+*代码*
 
-Loop is simply resetting the instruction pointer to an already 
-executed instruction and starting from there all over again. A 
-loop is just one application of jmp instruction. However, because 
-looping is a pervasive pattern, it earned its own syntax in C.
-
-  Source
-
-  #include <stdio.h>
-
-
+```c
+#include <stdio.h>
 
 int main(int argc, char *argv[]) {
-
     for (int i = 0; i < 10; i++) {
-
     }
 
-
-
     return 0;
-
 }
+```
 
-  Assembly
+*汇编代码* 
 
+```assembly
   080483db <main>:
-
   #include <stdio.h>
-
   int main(int argc, char *argv[]) {
-
    80483db:       push   ebp
-
    80483dc:       mov    ebp,esp
-
    80483de:       sub    esp,0x10
-
       for (int i = 0; i < 10; i++) {
-
    80483e1:       mov    DWORD PTR [ebp-0x4],0x0
-
    80483e8:       jmp    80483ee <main+0x13>
-
    80483ea:       add    DWORD PTR [ebp-0x4],0x1
-
    80483ee:       cmp    DWORD PTR [ebp-0x4],0x9
-
    80483f2:       jle    80483ea <main+0xf>
-
       }
-
       return 0;
-
    80483f4: b8 00 00 00 00        mov    eax,0x0
-
   }
-
    80483f9: c9                    leave
-
    80483fa: c3                    ret
-
    80483fb: 66 90                 xchg   ax,ax
-
    80483fd: 66 90                 xchg   ax,ax
-
    80483ff: 90                    nop
+```
 
-  The colors mark corresponding high level code to assembly code:
+我们用不同的颜色标记了对应的高阶代码与汇编代码。
 
-  1. The red instruction initialize i to 0.
+1. 红色指令将`i`初始化为0。
+2. 绿色指令通过使用`jle`并将它与`9`比较从而达成将`i`与`10`比较的目的。如果结果为真，则跳到`80483ea`进行另一次迭代。
+3. 蓝色指令将`i`增加`1`，使得循环在满足终止条件后能够终止。
 
-  2. The green instructions compare i to 10 by using jle and 
-    compare it to 9. If true, jump to 80483ea for another 
-    iteration.
+习题4.9.4 为什么蓝色的自增指令出现在绿色的比较指令之前？
 
-  3. The blue instruction increase i by 1, making the loop able 
-    to terminate once the terminate condition is satisfied.
+习题4.9.5 `while`和`do...while`可以生成什么样的汇编代码？
 
-  Why does the increment instruction (the blue instruction) 
-  appears before the compare instructions (the green 
-  instructions)?
+### 4.9.7 条件
 
-    What assembly code can be generated for while and do...while?
+同样，Ｃ语言中带有`if...else...`结构的条件语句只是`jmp`指令的另一种应用。它也是一种普遍存在的模式，于是在Ｃ语言中有了自己的语法。
 
-  Conditional
+*代码*
 
-Again, conditional in C with if...else... construct is just 
-another application of jmp instruction under the hood. It is also 
-a pervasive pattern that earned its own syntax in C.
-
-  Source
-
-  #include <stdio.h>
-
-
+```c
+#include <stdio.h>
 
 int main(int argc, char *argv[]) {
-
     int i = 0;
 
-
-
     if (argc) {
-
         i = 1;
-
     } else {
-
         i = 0;
-
     }
 
-
-
     return 0;
-
 }
+```
 
-  Assembly
+*汇编代码* 
 
+```assembly
   int main(int argc, char *argv[]) {
-
    80483db:        push   ebp
-
    80483dc:        mov    ebp,esp
-
    80483de:        sub    esp,0x10
-
       int i = 0;
-
    80483e1:        mov    DWORD PTR [ebp-0x4],0x0
-
       if (argc) {
-
    80483e8:        cmp    DWORD PTR [ebp+0x8],0x0
-
    80483ec:        je     80483f7 <main+0x1c>
-
           i = 1;
-
    80483ee:        mov    DWORD PTR [ebp-0x4],0x1
-
    80483f5:        jmp    80483fe <main+0x23>
-
       } else {
-
           i = 0;
-
    80483f7:        mov    DWORD PTR [ebp-0x4],0x0
-
       }
-
       return 0;
-
    80483fe:        mov    eax,0x0
-
   }
-
    8048403:        leave  
-
    8048404:        ret    
+```
 
-  The generated assembly code follows the same order as the 
-  corresponding high level syntax:
+生成的汇编代码，顺序与相应的高级语言语法相同：
 
-  • red instructions represents if branch.
+* 红色指令代表`if`分支。
+* 蓝色指令代表`else`分支。
+* 绿色指令是`if`和`else`分支的退出点。
 
-  • blue instructions represents else branch.
+`if`分支首先用`cmp`指令比较`argc`是否为假（等于0）。如果成立，它将继续在`80483f7`处执行`else`分支。否则，`if`分支继续执行其分支的代码，即`80483ee`的下一条指令，将`1`复制到`i`。最后，它跳过`else`分支，继续执行`80483fe`，它是下一条指令。
 
-  • green instruction is the exit point for both if and else 
-    branch.
-
-  if branch first compares whether argc is false (equal to 0) 
-  with cmp instruction. If true, it proceeds to else branch at 
-  80483f7. Otherwise, if branch continues with the code of its 
-  branch, which is the next instruction at 80483ee for copying 1 
-  to i. Finally, it skips over else branch and proceeds to 
-  80483fe, which is the next instruction pasts the if..else... 
-  construct.
-
-  else branch is entered when cmp instruction from if branch is 
-  true. else branch starts at 80483f7, which is the first 
-  instruction of else branch. The instruction copies 0 to i, and 
-  proceeds naturally to the next instruction pasts the 
-  if...else... construct without any jump.
+`else`分支在`if`分支的`cmp`指令为真时进入。`else`分支从`80483f7`开始，它是`else`分支的第一条指令。这条指令将`0`复制到`i`，然后自然地进入`if...else...`结构之后的下一条指令，没有任何跳跃。
