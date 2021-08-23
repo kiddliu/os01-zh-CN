@@ -9,8 +9,8 @@
 一个`ELF`二进制文件由以下部分组成：
 
 * *`ELF`头*：可执行文件的首个节，描述了文件的组织结构。
-* *程序标头表*：是一个固定大小结构体的数组，描述了可执行文件的每个段。
-* *节标头表*：是一个固定大小结构体的数组，描述可执行文件的每个节。
+* *程序头表*：是一个固定大小结构体的数组，描述了可执行文件的每个段。
+* *节头表*：是一个固定大小结构体的数组，描述可执行文件的每个节。
 * *段、节*：段与节是`ELF`二进制文件的主要内容，根据不同的用途分成了代码块和数据块。
 
 *段*是由零个或多个节组成，在运行时直接被操作系统加载。
@@ -26,286 +26,149 @@
 
 稍后我们将使用`GCC`将我们的内核编译成ELF可执行文件，并通过使用链接器脚本明确指定段的创建方式以及它们在内存中的加载位置，这里的链接器脚本是一个文本文件，指示链接器应该如何生成二进制文件。现在，我们将详细研究ELF可执行文件的结构。
 
+## 5.1 参考文档
 
+在Linux中，*ELF规范*被打包在一个`man`页面中。
 
-  Reference documents: 
-
-The [margin:
-ELF specification
-]ELF specification is bundled as a man page in Linux:
-
-
-
+```bash
 $ man elf
+```
 
+这是一个理解、实现`ELF`的有用资源。然而由于规范中掺杂了实现的细节，在您完成这一章之后再使用它会更容易一些。
 
+默认的规范是一个通用的规范，每个`ELF`的实现都遵循它。然而每个平台都提供了特有的额外功能。`x86`的`ELF`规范目前由H. J. Lu在Github上维护：<https://github.com/hjl-tools/x86-psABI/wiki/X86-psABI>。
 
-It is a useful resource to understand and implement ELF. However, 
-it will be much easier to use after you finish this chapter, as 
-the specification mixes implementation details in it.
+与特定平台有关的细节在通用`ELF`规范中被称为 "处理器特定（processor specific）"（数据）。我们不会探讨这些细节，而只是研究通用部分，这部分对于为我们的操作系统制作一个`ELF`二进制镜像来说足够了。
 
-The default specification is a generic one, in which every ELF 
-implementation follows. However, each platform provides extra 
-features unique to it. The ELF specification for x86 is currently 
-maintained on Github by H.J. Lu: https://github.com/hjl-tools/x86-psABI/wiki/X86-psABI
-. 
+## 5.2 `ELF`头
 
-Platform-dependent details are referred to as “processor specific”
- in the generic ELF specification. We will not explore these 
-details, but study the generic details, which are enough for 
-crafting an ELF binary image for our operating system.
+要查看`ELF`头的信息，可以使用：
 
-  ELF header
-
-To see the information of an ELF header:
-
-
-
+```bash
 $ readelf -h hello
+```
 
+得到的可能输出是：
 
-
-The output:
-
-
-
+```text
 ELF Header:
-
   Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00
-
   Class:                             ELF64   
-
-  Data:                              2's complement, little 
-endian
-
-  Version:                           1 (current)
-
+  Data:                              2's complement, little endian
+  Version                            1 (current)
   OS/ABI:                            UNIX - System V
-
   ABI Version:                       0
-
   Type:                              EXEC (Executable file)
-
-  Machine:                           Advanced Micro Devices 
-X86-64
-
+  Machine:                           Advanced Micro Devices X86-64
   Version:                           0x1
-
   Entry point address:               0x400430
-
   Start of program headers:          64 (bytes into file)
-
   Start of section headers:          6648 (bytes into file)
-
   Flags:                             0x0
-
   Size of this header:               64 (bytes)
-
   Size of program headers:           56 (bytes)
-
   Number of program headers:         9
-
   Size of section headers:           64 (bytes)
-
   Number of section headers:         31
-
 Section header string table index: 28
+```
 
+让我们逐一了解每个字段：
 
+*魔术数字* 表示了唯一标示该文件是一个`ELF`可执行二进制文件。每个字节都给出了一个简短的信息。
 
-Let's go through each field:
+示例中，我们有如下的魔法数字字节：
 
-  Magic
-
-  Displays the raw bytes that uniquely addresses a file is an ELF 
-  executable binary. Each byte gives a brief information.
-
-  In the example, we have the following magic bytes:
-
-  
-
+```text
   Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00
+```
 
+逐个字节检查：
+
+| 字节                      | 描述                                           |
+| ------------------------- | --------------------------------------------- |
+| `7f 45 4c 46`             | 预设值。首字节总是`7f`，余下字节标示字符串“ELF”。 |
+| `02`                      | 详见`Class`字段。                              |
+| `01`                      | 详见`Data`字段。                               |
+| `01`                      | 详见`Version`字段。                            |
+| `00`                      | 详见`OS/ABI`字段。                             |
+| `00`                      | 详见`OS/ABI`字段。                             |
+| `00 00 00 00 00 00 00 00` | 填充字节。这些字节是未使用的，总是被设置为`0`。填充字节是为了对齐而添加的，并保留给将来需要更多信息的时候使用。 |
+
+*类别* 魔术数字字段中的一个字节。它指定了一个文件的类别或容量。
+
+可能的值有：
+
+| 值  | 描述       |
+| --- | --------- |
+| `0` | 非法类别。 |
+| `1` | 32位对象。 |
+| `2` | 64位对象。 |
+
+*数据* 魔术数字字段中的一个字节。它指定了对象文件中处理器特定数据的数据编码。
+
+可能的值有：
+
+| 值  | 描述            |
+| --- | --------------- |
+| `0` | 非法的数据编码。 |
+| `1` | 小端，2的补码。  |
+| `2` | 大端，2的补码。  |
+
+*版本* 魔术数字字段中的一个字节。它指定了`ELF`头的版本号。
+
+可能的值有：
+
+| 值  | 描述         |
+| --- | ----------- |
+| `0` | 非法的版本。 |
+| `1` | 当前版本。   |
+
+*OS/ABI* 魔术数字字段中的一个字节。它指定了目标操作系统的应用二进制接口（ABI）。最初，它是一个填充字节。
+
+可能的值：请参考最新的ABI文件，因为列表很长，包含各种不同的操作系统。
+
+*类型* 标示了对象文件类型。
+
+| 值       | 描述               |
+| -------- | ------------------ |
+| `0`      | 无文件类型。        |
+| `1`      | 可重分配文件。      |
+| `2`      | 可执行文件。        |
+| `3`      | 共享对象文件。      |
+| `4`      | 核心文件。          |
+| `0xff00` | 处理器特定范围下限。 |
+| `0xffff` | 处理器特定范围上限。 |
+
+从`0xff00`到`0xffff`的值是为处理器保留的，用于定义对它有意义的额外文件类型。
   
+*设备* 指定了`ELF`文件所需的架构值，例如`x86_64`、`MIPS`、`SPARC`等等。在当前的例子中，*设备*值是`x86_64`架构。
 
-  Examine byte by byte:
+可能的值：请参考最新的ABI文件，因为列表很长，包含各种不同的操作系统。
 
-   
-  Byte                       Description                                                                                                                                                                     
-  -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    7f 45 4c 46                Predefined values. The first byte is always 7F, the remaining 3 
-bytes represent the string “ELF”.                                                                              
-                                                                                                                                                                                                               
-    02                         See Class field below.                                                                                                                                                          
-                                                                                                                                                                                                               
-    01                         See Data field below.                                                                                                                                                           
-                                                                                                                                                                                                               
-    01                         See Version field below.                                                                                                                                                        
-                                                                                                                                                                                                               
-    00                         See OS/ABI field below.                                                                                                                                                         
-                                                                                                                                                                                                               
-    00 00 00 00 00 00 00 00    Padding bytes. These bytes are unused and are always set to 0. 
-Padding bytes are added for proper alignment, and is reserved for 
-future use when more information is needed.  
-  
+*版本* 指定了当前对象文件的版本号（它不是之前介绍了的`ELF`头的版本）。
 
-  Class
+*入口位置* 指定了第一个要执行的代码的内存地址。在普通的应用程序中，默认是`main`函数的地址，但是也可以通过向`gcc`明确指定函数名，让任何函数作为入口。对于我们将要编写的操作系统来说，这是我们引导我们的内核所需要获取的最重要的字段，剩下其余的字段都可以忽略。
 
-  A byte in Magic field. It specifies the class or capacity of a 
-  file. 
+*程序头表的起始位置* 即程序头表的偏移量，单位为字节。在当前的例子中，这个数字是`64`字节，这意味着第`65`个字节，即`<起始地址> + 64`，是程序头表的起始地址。也就是说，如果一个程序被加载到内存地址为`0x10000`的位置，那么起始地址就是`0x10000`（魔术数字字段的第一个字节，数值为`0x7f`的位置），程序头表的起始地址为`0x10000 + 0x40 = 0x10040`。
 
-  Possible values:
+*节头表的起始位置* 节头表的偏移量，单位为字节，与程序头表的起始位置类似。在当前的例子中，它在文件第`6648`字节的地方。
 
-   
-  Value     Description    
-  ---------------------------
-      0      Invalid class   
-      1      32-bit objects  
-      2      64-bit objects  
-  
+*标志* 保存了与文件相关联的处理器特定标志。当在`x86`设备中加载程序时，EFLAGS寄存器会按照这个值设置。在当前的例子中，这个值为`0x0`，这意味着`EFLAGS`寄存器处于清零状态。
 
-  Data
+*头的大小* 指定了`ELF`头的总大小，单位为字节。在当前的例子中，它是64字节，与程序头表的起始位置相同。注意，这两个数字不一定相等，因为程序头表可以放在距离`ELF`头很远的地方。`ELF`可执行二进制文件中唯一固定的组件是`ELF`头，它的位置在文件的最开始位置。
 
-  A byte in Magic field. It specifies the data encoding of the 
-  processor-specific data in the object file.
+*程序头的大小* 指定了每个程序头的大小，单位为字节。在当前的例子中，它是`64`字节。
 
-  Possible values:
+*程序头的个数* 指定了程序头的总数。在当前的例子中，这个文件总共有`9`个程序头。
 
-   
-  Value    Description                    
-  ------------------------------------------
-      0      Invalid data encoding          
-      1      Little endian, 2's complement  
-      2      Big endian, 2's complement     
-  
+*节头的大小* 指定了每个节头的大小，单位为字节。在当前的例子中，它是`64`字节。
 
-  Version
+*节头的个数* 指定了节头的总数。在当前的例子中，这个文件总共有`31`个节头。在节头表中，表的首个条目总是一个空节。
 
-  A byte in Magic. It specifies the ELF header version number.
+*字符串表节头索引* 指定了指向存放所有以空结尾字符串的节在节头表中的节头的索引。在当前的例子中，这个索引是`28`，意味着它是表的第`28`项。
 
-  Possible values:
 
-   
-  Value    Description      
-  ----------------------------
-      0      Invalid version  
-      1      Current version  
-  
-
-  OS/ABI
-
-  A byte in Magic field. It specifies the target operating system 
-  ABI. Originally, it was a padding byte.
-
-  Possible values: Refer to the latest ABI document, as it is a 
-  long list of different operating systems.
-
-  Type
-
-  Identifies the object file type.
-
-   
-  Value     Description                      
-            -----------------------------------
-  ---------------------------------------------
-      0       No file type                     
-      1       Relocatable file                 
-      2       Executable file                  
-      3       Shared object file               
-      4       Core file                        
-    0xff00    Processor specific, lower bound  
-    0xffff    Processor specific, upper bound  
-  
-
-  The values from 0xff00 to 0xffff are reserved for a processor 
-  to define additional file types meaningful to it.
-
-  Machine
-
-  Specifies the required architecture value for an ELF file e.g. 
-  x86_64, MIPS, SPARC, etc. In the example, the machine is of x86_64
-   architecture.
-
-  Possible values: Please refer to the latest ABI document, as it 
-  is a long list of different architectures.
-
-  Version
-
-  Specifies the version number of the current object file (not 
-  the version of the ELF header, as the above Version field 
-  specified).
-
-  Entry point address
-
-  Specifies the memory address where the very first code to be 
-  executed. The address of main function is the default in a 
-  normal application program, but it can be any function by 
-  explicitly specifying the function name to gcc. For the 
-  operating system we are going to write, this is the single most 
-  important field that we need to retrieve to bootstrap our 
-  kernel, and everything else can be ignored.
-
-  Start of program headers
-
-  The offset of the program header table, in bytes. In the 
-  example, this number is 64 bytes, which means the 65th byte, or 
-  <start address> + 64, is the start address of the program 
-  header table. That is, if a program is loaded at address 0x10000
-   in memory, then the start address is 0x10000 (the very first 
-  byte of Magic field, where the value 0x7f resides) and the 
-  start address of program header table is 0x10000 + 0x40 = 0x10040
-  .
-
-  Start of section headers
-
-  The offset of the section header table in bytes, similar to the 
-  start of program headers. In the example, it is 6648 bytes into 
-  file.
-
-  Flags
-
-  Hold processor-specific flags associated with the file. When 
-  the program is loaded, in a x86 machine, EFLAGS register is set 
-  according to this value. In the example, the value is 0x0, 
-  which means EFLAGS register is in a clear state.
-
-  Size of this header
-
-  Specifies the total size of ELF header's size in bytes. In the 
-  example, it is 64 bytes, which is equivalent to Start of 
-  program headers. Note that these two numbers are not necessarily 
-  equivalent, as program header table might be placed far away 
-  from the ELF header. The only fixed component in the ELF 
-  executable binary is the ELF header, which appears at the very 
-  beginning of the file.
-
-  Size of program headers
-
-  Specifies the size of each program header in bytes. In the 
-  example, it is 64 bytes.
-
-  Number of program headers
-
-  Specifies the total number of program headers. In the example, 
-  the file has a total of 9 program headers.
-
-  Size of section headers
-
-  Specifies the size of each section header in bytes. In the 
-  example, it is 64 bytes.
-
-  Number of section headers
-
-  Specifies the total number of section headers. In the example, 
-  the file has a total of 31 section headers. In a section header 
-  table, the first entry in the table is always an empty section.
-
-  Section header string table index
-
-  Specifies the index of the header in the section header table 
-  that points to the section that holds all null-terminated 
-  strings. In the example, the index is 28, which means it's the 
-  28[superscript:th] entry of the table. 
 
   Section header table
 
