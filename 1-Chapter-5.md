@@ -150,13 +150,13 @@ Section header string table index: 28
 
 *入口位置* 指定了第一个要执行的代码的内存地址。在普通的应用程序中，默认是`main`函数的地址，但是也可以通过向`gcc`明确指定函数名，让任何函数作为入口。对于我们将要编写的操作系统来说，这是我们引导我们的内核所需要获取的最重要的字段，剩下其余的字段都可以忽略。
 
-*程序头表的起始位置* 即程序头表的偏移量，单位为字节。在当前的例子中，这个数字是`64`字节，这意味着第`65`个字节，即`<起始地址> + 64`，是程序头表的起始地址。也就是说，如果一个程序被加载到内存地址为`0x10000`的位置，那么起始地址就是`0x10000`（魔术数字字段的第一个字节，数值为`0x7f`的位置），程序头表的起始地址为`0x10000 + 0x40 = 0x10040`。
+*程序头表起点* 即程序头表的偏移量，单位为字节。在当前的例子中，这个数字是`64`字节，这意味着第`65`个字节，即`<起始地址> + 64`，是程序头表的起始地址。也就是说，如果一个程序被加载到内存地址为`0x10000`的位置，那么起始地址就是`0x10000`（魔术数字字段的第一个字节，数值为`0x7f`的位置），程序头表的起始地址为`0x10000 + 0x40 = 0x10040`。
 
-*节头表的起始位置* 节头表的偏移量，单位为字节，与程序头表的起始位置类似。在当前的例子中，它在文件第`6648`字节的地方。
+*节头表起点* 节头表的偏移量，单位为字节，与程序头表起点类似。在当前的例子中，它在文件第`6648`字节的地方。
 
 *标志* 保存了与文件相关联的处理器特定标志。当在`x86`设备中加载程序时，EFLAGS寄存器会按照这个值设置。在当前的例子中，这个值为`0x0`，这意味着`EFLAGS`寄存器处于清零状态。
 
-*头的大小* 指定了`ELF`头的总大小，单位为字节。在当前的例子中，它是64字节，与程序头表的起始位置相同。注意，这两个数字不一定相等，因为程序头表可以放在距离`ELF`头很远的地方。`ELF`可执行二进制文件中唯一固定的组件是`ELF`头，它的位置在文件的最开始位置。
+*头的大小* 指定了`ELF`头的总大小，单位为字节。在当前的例子中，它是64字节，与程序头表起点相同。注意，这两个数字不一定相等，因为程序头表可以放在距离`ELF`头很远的地方。`ELF`可执行二进制文件中唯一固定的组件是`ELF`头，它的位置在文件的最开始位置。
 
 *程序头的大小* 指定了每个程序头的大小，单位为字节。在当前的例子中，它是`64`字节。
 
@@ -166,466 +166,244 @@ Section header string table index: 28
 
 *节头的个数* 指定了节头的总数。在当前的例子中，这个文件总共有`31`个节头。在节头表中，表的首个条目总是一个空节。
 
-*字符串表节头索引* 指定了指向存放所有以空结尾字符串的节在节头表中的节头的索引。在当前的例子中，这个索引是`28`，意味着它是表的第`28`项。
+*字符串表索引节头* 指定了指向存放所有以空结尾字符串的节在节头表中的节头的索引。在当前的例子中，这个索引是`28`，意味着它是表的第`28`项。
 
+## 5.3 节头表
 
+我们已经知道，是代码和数据构成了一个程序。然而，并非所有类型的代码和数据都有着相同的目的。因此，代码和数据不是一个大整块，而是被拆分成了小块，（根据通用ABI）每个小块都必须满足下列这些条件：
 
-  Section header table
+* 对象文件中的每一节都正好有一个节头来描述它。但是也有可能存在一些节头，没有与之对应的节。
+* 每个节在文件中占据一个连续的字节序列（也可能为空）。这意味着，没有两个区域的字节属于同一节。
+* 文件中的节不能重叠。文件中的任何字节不可能同时位于多个节内。
+* 对象文件可能包含未使用的空间。各种头与节可能无法“覆盖”对象文件中的每个字节。未使用空间内的数据内容是不明确的。
 
-As we know already, code and data compose a program. However, not 
-all types of code and data have the same purpose. For that 
-reason, instead of a big chunk of code and data, they are divided 
-into smaller chunks, and each chunk must satisfy these conditions 
-(according to gABI):
+要从一个可执行的二进制文件——例如`hello`——中获得所有的头，可以使用以下命令：
 
-• Every section in an object file has exactly one section header 
-  describing it. But, section headers may exist that do not have 
-  a section.
-
-• Each section occupies one contiguous (possibly empty) sequence 
-  of bytes within a file. That means, there's no two regions of 
-  bytes that are the same section.
-
-• Sections in a file may not overlap. No byte in a file resides 
-  in more than one section.
-
-• An object file may have inactive space. The various headers and 
-  the sections might not “cover” every byte in an object file. 
-  The contents of the inactive data are unspecified.
-
-To get all the headers from an executable binary e.g. hello, use 
-the following command:
-
-
-
+```bash
 $ readelf -S hello
+```
 
+下面是一个示例输出（如果你无法理解这些输出，请不要担心。现在只需要稍微熟悉一下。我们很快就会对它进行深入剖析）。
 
+输出：
 
-Here is a sample output (do not worry if you don't understand the 
-output. Just skim to get your eyes familiar with it. We will 
-dissect it soon enough):
-
-
-
+```text
 There are 31 section headers, starting at offset 0x19c8:
-
-
-
 Section Headers:
+  [Nr] Name              Type             Address           Offset
+       Size              EntSize          Flags  Link  Info  Align
 
-  [Nr] Name              Type             Address           
-Offset
-
-       Size              EntSize          Flags  Link  Info  
-Align
-
-  [ 0]                   NULL             0000000000000000  
-00000000
-
+  [ 0]                   NULL             0000000000000000  00000000
        0000000000000000  0000000000000000           0     0     0
 
-  [ 1] .interp           PROGBITS         0000000000400238  
-00000238
-
+  [ 1] .interp           PROGBITS         0000000000400238  00000238
        000000000000001c  0000000000000000   A       0     0     1
 
-  [ 2] .note.ABI-tag     NOTE             0000000000400254  
-00000254
-
+  [ 2] .note.ABI-tag     NOTE             0000000000400254  00000254
        0000000000000020  0000000000000000   A       0     0     4
 
-  [ 3] .note.gnu.build-i NOTE             0000000000400274  
-00000274
-
+  [ 3] .note.gnu.build-i NOTE             0000000000400274  00000274
        0000000000000024  0000000000000000   A       0     0     4
 
-  [ 4] .gnu.hash         GNU_HASH         0000000000400298  
-00000298
-
+  [ 4] .gnu.hash         GNU_HASH         0000000000400298  00000298
        000000000000001c  0000000000000000   A       5     0     8
 
-  [ 5] .dynsym           DYNSYM           00000000004002b8  
-000002b8
-
+  [ 5] .dynsym           DYNSYM           00000000004002b8  000002b8
        0000000000000048  0000000000000018   A       6     1     8
 
-  [ 6] .dynstr           STRTAB           0000000000400300  
-00000300
-
+  [ 6] .dynstr           STRTAB           0000000000400300  00000300
        0000000000000038  0000000000000000   A       0     0     1
 
-  [ 7] .gnu.version      VERSYM           0000000000400338  
-00000338
-
+  [ 7] .gnu.version      VERSYM           0000000000400338  00000338
        0000000000000006  0000000000000002   A       5     0     2
 
-  [ 8] .gnu.version_r    VERNEED          0000000000400340  
-00000340
-
+  [ 8] .gnu.version_r    VERNEED          0000000000400340  00000340
        0000000000000020  0000000000000000   A       6     1     8
 
-  [ 9] .rela.dyn         RELA             0000000000400360  
-00000360
-
+  [ 9] .rela.dyn         RELA             0000000000400360  00000360
        0000000000000018  0000000000000018   A       5     0     8
 
-  [10] .rela.plt         RELA             0000000000400378  
-00000378
-
+  [10] .rela.plt         RELA             0000000000400378  00000378
        0000000000000018  0000000000000018  AI       5    24     8
 
-  [11] .init             PROGBITS         0000000000400390  
-00000390
-
+  [11] .init             PROGBITS         0000000000400390  00000390
        000000000000001a  0000000000000000  AX       0     0     4
 
-  [12] .plt              PROGBITS         00000000004003b0  
-000003b0
+  [12] .plt              PROGBITS         00000000004003b0  000003b0
+       0000000000000020  0000000000000010  AX       0     0     16
 
-       0000000000000020  0000000000000010  AX       0     0     
-16
-
-  [13] .plt.got          PROGBITS         00000000004003d0  
-000003d0
-
+  [13] .plt.got          PROGBITS         00000000004003d0  000003d0
        0000000000000008  0000000000000000  AX       0     0     8
 
-  [14] .text             PROGBITS         00000000004003e0  
-000003e0
+  [14] .text             PROGBITS         00000000004003e0  000003e0
+       0000000000000192  0000000000000000  AX       0     0     16
 
-       0000000000000192  0000000000000000  AX       0     0     
-16
-
-  [15] .fini             PROGBITS         0000000000400574  
-00000574
-
+  [15] .fini             PROGBITS         0000000000400574  00000574
        0000000000000009  0000000000000000  AX       0     0     4
 
-  [16] .rodata           PROGBITS         0000000000400580  
-00000580
-
+  [16] .rodata           PROGBITS         0000000000400580  00000580
        0000000000000004  0000000000000004  AM       0     0     4
 
-  [17] .eh_frame_hdr     PROGBITS         0000000000400584  
-00000584
-
+  [17] .eh_frame_hdr     PROGBITS         0000000000400584  00000584
        000000000000003c  0000000000000000   A       0     0     4
 
-  [18] .eh_frame         PROGBITS         00000000004005c0  
-000005c0
-
+  [18] .eh_frame         PROGBITS         00000000004005c0  000005c0
        0000000000000114  0000000000000000   A       0     0     8
 
-  [19] .init_array       INIT_ARRAY       0000000000600e10  
-00000e10
-
+  [19] .init_array       INIT_ARRAY       0000000000600e10  00000e10
        0000000000000008  0000000000000000  WA       0     0     8
 
-  [20] .fini_array       FINI_ARRAY       0000000000600e18  
-00000e18
-
+  [20] .fini_array       FINI_ARRAY       0000000000600e18  00000e18
        0000000000000008  0000000000000000  WA       0     0     8
 
-  [21] .jcr              PROGBITS         0000000000600e20  
-00000e20
-
+  [21] .jcr              PROGBITS         0000000000600e20  00000e20
        0000000000000008  0000000000000000  WA       0     0     8
 
-  [22] .dynamic          DYNAMIC          0000000000600e28  
-00000e28
-
+  [22] .dynamic          DYNAMIC          0000000000600e28  00000e28
        00000000000001d0  0000000000000010  WA       6     0     8
 
-  [23] .got              PROGBITS         0000000000600ff8  
-00000ff8
-
+  [23] .got              PROGBITS         0000000000600ff8  00000ff8
        0000000000000008  0000000000000008  WA       0     0     8
 
-  [24] .got.plt          PROGBITS         0000000000601000  
-00001000
-
+  [24] .got.plt          PROGBITS         0000000000601000  00001000
        0000000000000020  0000000000000008  WA       0     0     8
 
-  [25] .data             PROGBITS         0000000000601020  
-00001020
-
+  [25] .data             PROGBITS         0000000000601020  00001020
        0000000000000010  0000000000000000  WA       0     0     8
 
-  [26] .bss              NOBITS           0000000000601030  
-00001030
-
+  [26] .bss              NOBITS           0000000000601030  00001030
        0000000000000008  0000000000000000  WA       0     0     1
 
-  [27] .comment          PROGBITS         0000000000000000  
-00001030
-
+  [27] .comment          PROGBITS         0000000000000000  00001030
        0000000000000034  0000000000000001  MS       0     0     1
 
-  [28] .shstrtab         STRTAB           0000000000000000  
-000018b6
-
+  [28] .shstrtab         STRTAB           0000000000000000  000018b6
        000000000000010c  0000000000000000           0     0     1
 
-  [29] .symtab           SYMTAB           0000000000000000  
-00001068
-
+  [29] .symtab           SYMTAB           0000000000000000  00001068
        0000000000000648  0000000000000018          30    47     8
 
-  [30] .strtab           STRTAB           0000000000000000  
-000016b0
-
+  [30] .strtab           STRTAB           0000000000000000  000016b0
        0000000000000206  0000000000000000           0     0     1
 
 Key to Flags:
+  W (write), A (alloc), X (execute), M (merge), S (strings), l (large)
+  I (info), L (link order), G (group), T (TLS), E (exclude), x (unknown)
+  O (extra OS processing required) o (OS specific), p (processor specific)
+```
 
-  W (write), A (alloc), X (execute), M (merge), S (strings), l 
-(large)
+第一行：
 
-  I (info), L (link order), G (group), T (TLS), E (exclude), x 
-(unknown)
-
-  O (extra OS processing required) o (OS specific), p (processor 
-specific)
-
-
-
-The first line:
-
-
-
+```text
 There are 31 section headers, starting at offset 0x19c8
+```
 
+总结了文件中的总节数，以及它的起始地址。然后逐节列出了以下节头，也是每一节输出的格式。
 
-
-summarizes the total number of sections in the file, and where 
-the address where it starts. Then, comes the listing section by 
-section with the following header, is also the format of each 
-section output:
-
-
-
+```text
 [Nr] Name              Type             Address           Offset
-
      Size              EntSize          Flags  Link  Info  Align
+```
 
+每一节都有两行，各有不同的字段：
 
+*Nr* 每一节的索引。
 
-Each section has two lines with different fields:
+*Name* 每一节的名称。
 
-  Nr The index of each section.
+*Type* （在节头中）这个字段标示了每个节的类型。类型对节进行分类（类似于编译器所使用的编程语言中的类型）。
 
-  Name The name of each section.
+*Address* 每一节的起始虚拟地址。请注意，只有当程序运行在一个支持虚拟内存的操作系统中时，这些地址才是虚拟的。在我们的操作系统中，由于运行在裸机上，地址将全部是物理地址。
 
-  Type This field (in a section header) identifies the type of 
-  each section. Types classify sections (similar to types in 
-  programming languages are used by a compiler). 
+*Offset* 每一节在文件中的偏移量。偏移量是一个以字节为单位，从文件的第一个字节到一个对象起始位置的距离，这个对象可以是`ELF`二进制文件中的一个节或一个段。
 
-  Address The starting virtual address of each section. Note that 
-  the addresses are virtual only when a program runs in an OS 
-  with support for virtual memory enabled. In our OS, since we 
-  run on bare metal, the addresses will all be physical.
+*Size* 每一节的大小。
 
-  Offset The offset of each section into a file. An [margin:
-offset
-]offsetoffset is a distance in bytes, from the first byte of a 
-  file to the start of an object, such as a section or a segment 
-  in the context of an ELF binary file.
+*EntSize* 有些节保存了一张由固定大小条目构成的表，比如说符号表。对于这样的节，这个成员（按字节）给出了每个条目的大小。如果这个节不包含这样的条目表，那么该成员的值就为`0`。
 
-  Size The size in bytes of each section.
+*Flags* 描述了一个节的属性。标志和类型一起定义了一个节的用途。两个节可以有相同的类型，却有着不同的用途。例如，尽管`.data`和`.text`具有相同的类型，但`.data`保存程序的初始化数据，而`.text`保存程序的可执行指令。由于这个原因，`.data`被赋予了读写权限，但不是可执行的。任何试图在`.data`中执行代码的行为都会被操作系统所拒绝：在Linux中，这样非法地使用区会产生一个段错误(segfault)。
 
-  EntSize Some sections hold a table of fixed-size entries, such 
-  as a symbol table. For such a section, this member gives the 
-  size in bytes of each entry. The member contains 0 if the 
-  section does not hold a table of fixed-size entries.
+`ELF`提供信息，使操作系统可以启用这种保护机制。然而在裸机上运行，没有什么可以阻止做任何事情。我们的操作系统可以在数据区执行代码，反之也可以写数据到代码区。
 
-  Flags describes attributes of a section. Flags together with a 
-  type defines the purpose of a section. Two sections can be of 
-  the same type, but serve different purposes. For example, even 
-  though .data and .text share the same type, .data holds the 
-  initialized data of a program while .text holds executable 
-  instructions of a program. For that reason, .data is given read 
-  and write permission, but not executable. Any attempt to 
-  execute code in .data is denied by the running OS: in Linux, 
-  such invalid section usage gives a segmentation fault.
+表5.3.1 区标志
 
-  ELF gives information to enable an OS with such protection 
-  mechanism. However, running on bare metal, nothing can prevent 
-  from doing anything. Our OS can execute code in data section, 
-  and vice versa, writing to code section.
+| 标志 | 描述 |
+|------| ---- |
+| W    | 这个节中的字节在执行过程中是可以写入的。 |
+| A    | 在进程执行过程中为该节分配内存。有些控制节不在对象文件的内存镜像中；对于这些节，这个标志是关闭的。 |
+| X    | 这个节包含可执行指令。 |
+| M    | 这个节的数据可以出于消除重复的目的被合并。节中的每个元素都要与具有相同名称、类型和标志的其他节的元素进行比较。程序运行时有相同值的元素可以被合并。 |
+| S    | 这个节中的数据元素是以空结尾的字符串。每个字符的大小在节头的`EntSize`字段指定。 |
+| l    | 标识x86_64架构下的特定大节。通用ABI中没有这个标志，但是在x86_64 ABI中有。 |
+| I    | 表明这个节头的`Info`字段包含一个节头的索引。否则，这个数字就是其他东西的索引。 |
+| L    | 在链接时保留节的顺序。如果在输出文件中该节与其他节合并，它必须与这些节保持相同的相对顺序，也适用于链接的节与被链接的节的相对顺序。此标志在本节头中的`Link`字段引用另一节（被链接的节）时适用。 |
+| G    | 这个节是一个节组的成员（也许是唯一的成员）。 |
+| T    | 这个节包含线程本地存储，意味着每个线程都有这份数据的各自独有的实例。线程是一个独立的代码执行流程。一个程序可以有多个线程，这些线程打包不同的代码片断，在同一时间分别执行。在编写内核时，我们将学习更多关于线程的知识。 |
+| E    | 当可执行文件和共享库不再被重新定位时，链接编辑器将从它构建的这些资源中排除这个节。 |
+| x    | 对`readelf`未知的标志。之所以有这种情况是因为链接过程可以用`GNU ld`这样的链接器手动完成（我们以后会了解）。也就是说，部分标志可以手动指定，而有些标志是转为定制后的`ELF`使用的，那么开源的`readelf`是无法识别的。 |
+| O    | 这一节需要特定操作系统的特殊处理（而非标准链接规则）以避免不正确的行为。如果链接编辑器遇到了节头包含了它无法识别的、ELF标准定义的类别或标志值以外的操作系统特定值，那么链接编辑器应该合并这些节。 |
+| o    | 这个标志中包含的所有位都是为操作系统特定的语义而保留的。 |
+| p    | 这个标志中包括的所有位都保留给处理器特定的语义。如果有指定的含义，处理器的补充说明。 |
 
+*Link* *Info* 是引用节、符号表条目、哈希表条目索引的数字。`Link`字段保存一个节的索引，而`Info`字段根据节的类别保存一个节、一个符号表条目或一个哈希表条目的索引。
 
-                                                                                                                                                                                           [Table 5:
-Section Flags
-]                                                                                                                                                                                           
-+-------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Flag  | Descriptions                                                                                                                                                                                                                                                                                                                                                                                        |
-+-------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-+-------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| W     | Bytes in this section are writable during execution.                                                                                                                                                                                                                                                                                                                                                |
-+-------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| A     | Memory is allocated for this section during process execution. 
-Some control sections do not reside in the memory image of an 
-object file; this attribute is off for those sections.                                                                                                                                                                                                               |
-+-------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| X     | The section contains executable instructions.                                                                                                                                                                                                                                                                                                                                                       |
-+-------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| M     | The data in the section may be merged to eliminate duplication. 
-Each element in the section is compared against other elements in 
-sections with the same name, type and flags. Elements that would 
-have identical values at program run-time may be merged.                                                                                                                                      |
-+-------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| S     | The data elements in the section consist of null-terminated 
-character strings. The size of each character is specified in the 
-section header's EntSize field.                                                                                                                                                                                                                                     |
-+-------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| l     | Specific large section for x86_64 architecture. This flag is not 
-specified in the Generic ABI but in x86_64 ABI.                                                                                                                                                                                                                                                                                   |
-+-------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| I     | The Info field of this section header holds an index of a section 
-header. Otherwise, the number is the index of something else.                                                                                                                                                                                                                                                                    |
-+-------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| L     | Preserve section ordering when linking. If this section is 
-combined with other sections in the output file, it must appear 
-in the same relative order with respect to those sections, as the 
-linked-to section appears with respect to sections the linked-to 
-section is combined with. Apply when the Link field of this 
-section's header references another section (the linked-to 
-section) |
-+-------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| G     | This section is a member (perhaps the only one) of a section 
-group.                                                                                                                                                                                                                                                                                                                                |
-+-------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| T     | This section holds Thread-Local Storage, meaning that each thread 
-has its own distinct instance of this data. A thread is a 
-distinct execution flow of code. A program can have multiple 
-threads that pack different pieces of code and execute 
-separately, at the same time. We will learn more about threads 
-when writing our kernel.                                                        |
-+-------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| E     | Link editor is to exclude this section from executable and shared 
-library that it builds when those objects are not to be further 
-relocated.                                                                                                                                                                                                                                                      |
-+-------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| x     | Unknown flag to readelf. It happens because the linking process 
-can be done manually with a linker like GNU ld (we will later 
-later). That is, section flags can be specified manually, and 
-some flags are for a customized ELF that the open-source readelf 
-doesn't know of.                                                                                                                   |
-+-------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| O     | This section requires special OS-specific processing (beyond the 
-standard linking rules) to avoid incorrect behavior. A link 
-editor encounters sections whose headers contain OS-specific 
-values it does not recognize by Type or Flags values defined by 
-ELF standard, the link editor should combine those sections.                                                                          |
-+-------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| o     | All bits included in this flag are reserved for operating 
-system-specific semantics.                                                                                                                                                                                                                                                                                                               |
-+-------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| p     | All bits included in this flag are reserved for 
-processor-specific semantics. If meanings are specified, the 
-processor supplement explains them.                                                                                                                                                                                                                                                  |
-+-------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+稍后在编写操作系统时，我们将通过链接器脚本显式地链接（由`gcc`生成的）对象文件，手工制作内核镜像。我们将通过指定它们在最终映像中出现的地址来指定各节的内存布局。但是我们不会指定任何节的标志，而是让链接器来处理。然而，知道哪个标志是做什么的是很有用的。
 
+*Align* 是一个值，强制要求一个节的偏移量应该被这个值所除。只有`0`和`2`的正整数次方是允许的。值`0`和`1`标识这个节没有对齐约束。
 
-  Link and Info are numbers that references the indexes of 
-  sections, symbol table entries, hash table entries. Link field 
-  holds the index of a section, while Info field holds an index 
-  of a section, a symbol table entry or a hash table entry, 
-  depends on the type of a section. 
+示例5.3.1 `.interp`节的输出：
 
-  Later when writing our OS, we will handcraft the kernel image 
-  by explicitly linking the object files (produced by gcc) 
-  through a linker script. We will specify the memory layout of 
-  sections by specifying at what addresses they will appear in 
-  the final image. But we will not assign any section flag and 
-  let the linker take care of it. Nevertheless, knowing which 
-  flag does what is useful.
+```text
+  [Nr] Name              Type             Address             Offset
+       Size              EntSize          Flags  Link  Info    Align
 
-  Align is a value that enforces the offset of a section should 
-  be divisible by the value. Only 0 and positive integral powers 
-  of two are allowed. Values 0 and 1 mean the section has no 
-  alignment constraint.
-
-Output of .interp section:
-
-  
-
-  [Nr] Name              Type             Address           
-  Offset
-
-       Size              EntSize          Flags  Link  Info  
-  Align
-
-  [ 1] .interp           PROGBITS         0000000000400238  
-  00000238
-
+  [ 1] .interp           PROGBITS         0000000000400238    00000238
        000000000000001c  0000000000000000   A       0     0     1
+```
 
-  
+`Nr` 是`1`.
 
-  Nr is 1.
+`Type` 是`PROGBITS`, 表示这个节是程序的一部分。
 
-  Type is PROGBITS, which means this section is part of the 
-  program.
+`Address` 是`0x0000000000400238`，表示运行时程序被加载在这个虚拟内存地址。
 
-  Address is 0x0000000000400238, which means the program is 
-  loaded at this virtual memory address at runtime.
+`Offset` 是节位于文件的第`0x00000238`个字节。
 
-  Offset is 0x00000238 bytes into file.
+`Size` 是`0x000000000000001c`个字节。
 
-  Size is 0x000000000000001c in bytes.
+`EntSize` 是`0`，表示这个节没有任何固定大小的条目。
 
-  EntSize is 0, which means this section does not have any 
-  fixed-size entry.
+`Flags` 是`A`（可分配的），表示这个节在运行时会消耗内存。
 
-  Flags are A (Allocatable), which means this section consumes 
-  memory at runtime.
+`Info` `Link` 分别是`0`和`0`，表示这个节没有链接任何节，或任何表的任何条目。
 
-  Info and Link are 0 and 0, which means this section links to no 
-  section or entry in any table.
+`Align` 是`1`，表示没有对齐。
 
-  Align is 1, which means no alignment.
+示例5.3.1 `.text`节的输出：
 
+```text
+  [14] .text             PROGBITS         00000000004003e0    000003e0
+         0000000000000192  0000000000000000  AX       0     0       16
+```
 
+`Nr` 是`14`.
 
-Output of the .text section:
+`Type` 是`PROGBITS`, 表示这个节是程序的一部分。
 
-  
+`Address` 是`0x00000000004003e0`，表示运行时程序被加载在这个虚拟内存地址。
 
-  [14] .text             PROGBITS         00000000004003e0  
-  000003e0
+`Offset` 是节位于文件的第`0x000003e0`个字节。
 
-         0000000000000192  0000000000000000  AX       0     0     
-  16
+`Size` 是`0x0000000000000192`个字节。
 
-  
+`EntSize` 是`0`，表示这个节没有任何固定大小的条目。
 
-  Nr is 14.
+`Flags` 是`A`（可分配的）和`X`，表示这个节在运行时会消耗内存，且可以当作代码执行。
 
-  Type is PROGBITS, which means this section is part of the 
-  program.
+`Info` `Link` 分别是`0`和`0`，表示这个节没有链接任何节，或任何表的任何条目。
 
-  Address is 0x00000000004003e0, which means the program is 
-  loaded at this virtual memory address at runtime.
+`Align` 是`16`，表示这个节的起点地址应当可以被`16`或`0x10`整除。确实：`0x3e0 / 0x10 = 0x3e`。
 
-  Offset is 0x000003e0 bytes into file.
-
-  Size is 0x0000000000000192 in bytes.
-
-  EntSize is 0, which means this section does not have any 
-  fixed-size entry.
-
-  Flags are A (Allocatable) and X (Executable), which means this 
-  section consumes memory and can be executed as code at runtime.
-
-  Info and Link are 0 and 0, which means this section links to no 
-  section or entry in any table.
-
-  Align is 16, which means the starting address of the section 
-  should be divisible by 16, or 0x10. Indeed, it is: \mathtt{0x3e0/0x10=0x3e}
-
-  . 
 
   Understand Section in-depth
 
