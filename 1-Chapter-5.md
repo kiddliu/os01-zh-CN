@@ -404,282 +404,136 @@ There are 31 section headers, starting at offset 0x19c8
 
 `Align` 是`16`，表示这个节的起点地址应当可以被`16`或`0x10`整除。确实：`0x3e0 / 0x10 = 0x3e`。
 
+## 5.4 深入了解节（section）
 
-  Understand Section in-depth
+在本节中，我们将通过逐一查看每个节（section），了解各种节类型的细节以及特殊节，例如`.bss`、`.text`、`.data`等等的用途。我们还会用下面的命令检视每个节的十六进制转储内容：
 
-In this section, we will learn different details of section types 
-and the purposes of special sections e.g. .bss, .text, .data... 
-by looking at each section one by one. We will also examine the 
-content of each section as a hexdump with the commands:
-
-
-
+```bash
 $ readelf -x <section name|section number> <file>
+```
 
+比如，如果你想检查文件`hello`中索引为25的节（示例输出中的`.bss`节）的内容，执行：
 
-
-For example, if you want to examine the content of section with 
-index 25 (the .bss section in the sample output) in the file 
-hello:
-
-
-
+```bash
 $ readelf -x 25 hello
+```
 
+同样也可以使用名称，而不是索引：
 
-
-Equivalently, using name instead of index works:
-
-
-
+```bash
 $ readelf -x .data hello
+```
 
+如果某个节包含字符串，例如字符串符号表，可以用`-p`标志代替`-x`标志。
 
+`NULL`标志着此节头是未启用的，并且没有与之关联的节。`NULL`节总是节头表的第一条目。这意味着，任何有意义的节都从索引`1`开始的。
 
-If a section contains strings e.g. string symbol table, the flag 
--x can be replaced with -p.
+示例5.4.1 `NULL`节的示例输出：
 
-  NULL marks a section header as inactive and does not have an 
-  associated section. NULL section is always the first entry of 
-  section header table. It means, any useful section starts from 
-  1.
+```text
+[Nr] Name             Type             Address               Offset
+      Size             EntSize          Flags  Link  Info      Align
+[ 0]                  NULL             0000000000000000     00000000
+      0000000000000000 0000000000000000           0     0         0
+```
 
-  The sample output of NULL section:
+检查内容，发现这个节是空的：
 
-    
+```text
+Section '' has no data to dump.
+```
 
-    [Nr] Name             Type             Address           
-    Offset
+*NOTE* 标志着带有特殊信息的节，以便其他程序使用厂商或者系统构建者提供的工具检查一致性、兼容性。
 
-         Size             EntSize          Flags  Link  Info  
-    Align
+示例5.4.2 在示例输出中，我们有`2`个`NOTE`节。
 
-    [ 0]                  NULL             0000000000000000 
-    00000000
+```text
+[Nr] Name              Type             Address               Offset
+      Size              EntSize          Flags  Link  Info      Align
+[ 2] .note.ABI-tag     NOTE             0000000000400254      00000254
+      0000000000000020  0000000000000000   A       0     0         4
+[ 3] .note.gnu.build-i NOTE             0000000000400274      00000274          
+      0000000000000024  0000000000000000   A       0     0         4
+```
 
-         0000000000000000 0000000000000000           0     0     
-    0
+用下面的命令检查第二个节：
 
-    
-
-  Examining the content, the section is empty:
-
+```
+$ readelf -x 2 hello
+```
   
+我们得到：
+
+```text
+Hex dump of section '.note.ABI-tag':
+  0x00400254 04000000 10000000 01000000 474e5500 ............GNU.
+  0x00400264 00000000 02000000 06000000 20000000 ............ ...
+```
+
+*PROGBITS* 表示这个节存放的是程序主要内容，可以是代码，也可以是数据。
+
+示例5.4.3 示例输出中有许多`PROGBITS`节：
+
+```text
+[Nr] Name              Type             Address               Offset
+      Size              EntSize          Flags  Link  Info      Align
+[ 1] .interp           PROGBITS         0000000000400238      00000238
+      000000000000001c  0000000000000000   A       0     0         1
+...
+[11] .init             PROGBITS         0000000000400390      00000390
+      000000000000001a  0000000000000000  AX       0     0         4
+[12] .plt              PROGBITS         00000000004003b0      000003b0
+      0000000000000020  0000000000000010  AX       0     0         16
+[13] .plt.got          PROGBITS         00000000004003d0      000003d0
+      0000000000000008  0000000000000000  AX       0     0         8
+[14] .text             PROGBITS         00000000004003e0      000003e0
+      0000000000000192  0000000000000000  AX       0     0         16
+[15] .fini             PROGBITS         0000000000400574      00000574
+      0000000000000009  0000000000000000  AX       0     0         4
+[16] .rodata           PROGBITS         0000000000400580      00000580
+      0000000000000004  0000000000000004  AM       0     0         4
+[17] .eh_frame_hdr     PROGBITS         0000000000400584      00000584
+      000000000000003c  0000000000000000   A       0     0         4
+[18] .eh_frame         PROGBITS         00000000004005c0      000005c0
+      0000000000000114  0000000000000000   A       0     0         8
+...
+[23] .got              PROGBITS         0000000000600ff8      00000ff8
+      0000000000000008  0000000000000008  WA       0     0         8
+[24] .got.plt          PROGBITS         0000000000601000      00001000
+      0000000000000020  0000000000000008  WA       0     0         8
+[25] .data             PROGBITS         0000000000601020      00001020
+      0000000000000010  0000000000000000  WA       0     0         8
+[27] .comment          PROGBITS         0000000000000000      00001030
+      0000000000000034  0000000000000001  MS       0     0         1
+```
+
+对于我们的操作系统，我们只需要下面的节：
+
+`.text` 这一节存放着程序所有编译后的代码。
+
+`.data` 这一部分存放着程序的初始化数据。由于这些数据都是用实际值初始化的，所以`gcc`在二进制可执行文件中真实地分配了空间，保存了这个节。
+
+`.rodata` 这部分存放着只读数据，例如程序中长度确定的字符串，类似"Hello World"或是其他字符串。
+
+`.bss` 这一节，是**B**lock **S**tarted by **S**ymbol的缩写，存放着程序未初始化的数据。与其他节不同，在磁盘上的二进制可执行文件镜像中没有为这一节分配空间。这一节只有在程序被加载到内存时才会被分配空间。
+
+其他的节主要用于动态链接，也就是在运行时进行代码链接，方便在程序之间共享。为了实现这样的功能，就必须要有作为运行时环境的操作系统。由于我们的操作系统运行在裸机上，所以实际上我们是在创造这样一个环境。简单起见，我们不会在我们的操作系统中加入动态链接功能。
+
+`SYMTAB`与`DYNSYM` 这些节保存了符号表。符号表是描述了程序中各种符号的数组。符号是分配给程序中实体的名称。实体的类型也是符号的类型，下面这些是实体的可能类型值：
+
+示例5.4.4 示例输出中，第`5`节和第`29`节是符号表。
+
+```text
+[Nr] Name              Type             Address           Offset
+      Size              EntSize          Flags  Link  Info  Align
+[ 5] .dynsym           DYNSYM           00000000004002b8  000002b8
+      0000000000000048  0000000000000018   A       6     1     8
+...
+[29] .symtab           SYMTAB           0000000000000000  00001068
+      0000000000000648  0000000000000018          30    47     8
+```
 
-   Section '' has no data to dump.
 
-  
-
-  NOTE marks a section with special information that other 
-  programs will check for conformance, compatibility... by a 
-  vendor or a system builder.
-
-  In the sample output, we have 2 NOTE sections:
-
-    
-
-    [Nr] Name              Type             Address           
-    Offset
-
-         Size              EntSize          Flags  Link  Info  
-    Align
-
-    [ 2] .note.ABI-tag     NOTE             0000000000400254  
-    00000254
-
-         0000000000000020  0000000000000000   A       0     0     
-    4
-
-    [ 3] .note.gnu.build-i NOTE             0000000000400274  
-    00000274          
-
-         0000000000000024  0000000000000000   A       0     0     
-    4
-
-    
-
-  Examine 2nd section with the command:
-
-  
-
-  $ readelf -x 2 hello
-
-  
-
-  we have:
-
-  
-
-  Hex dump of section '.note.ABI-tag':
-
-    0x00400254 04000000 10000000 01000000 474e5500 
-  ............GNU.
-
-    0x00400264 00000000 02000000 06000000 20000000 ............ 
-  ...
-
-  
-
-  PROGBITS indicates a section holding the main content of a 
-  program, either code or data.
-
-  There are many PROGBITS sections:
-
-    
-
-      [Nr] Name              Type             Address           
-    Offset
-
-           Size              EntSize          Flags  Link  Info  
-    Align
-
-      [ 1] .interp           PROGBITS         0000000000400238  
-    00000238
-
-           000000000000001c  0000000000000000   A       0     0   
-      1
-
-      ...
-
-      [11] .init             PROGBITS         0000000000400390  
-    00000390
-
-           000000000000001a  0000000000000000  AX       0     0   
-      4
-
-      [12] .plt              PROGBITS         00000000004003b0  
-    000003b0
-
-           0000000000000020  0000000000000010  AX       0     0   
-      16
-
-      [13] .plt.got          PROGBITS         00000000004003d0  
-    000003d0
-
-           0000000000000008  0000000000000000  AX       0     0   
-      8
-
-      [14] .text             PROGBITS         00000000004003e0  
-    000003e0
-
-           0000000000000192  0000000000000000  AX       0     0   
-      16
-
-      [15] .fini             PROGBITS         0000000000400574  
-    00000574
-
-           0000000000000009  0000000000000000  AX       0     0   
-      4
-
-      [16] .rodata           PROGBITS         0000000000400580  
-    00000580
-
-           0000000000000004  0000000000000004  AM       0     0   
-      4
-
-      [17] .eh_frame_hdr     PROGBITS         0000000000400584  
-    00000584
-
-           000000000000003c  0000000000000000   A       0     0   
-      4
-
-      [18] .eh_frame         PROGBITS         00000000004005c0  
-    000005c0
-
-           0000000000000114  0000000000000000   A       0     0   
-      8
-
-      ...
-
-      [23] .got              PROGBITS         0000000000600ff8  
-    00000ff8
-
-           0000000000000008  0000000000000008  WA       0     0   
-      8
-
-      [24] .got.plt          PROGBITS         0000000000601000  
-    00001000
-
-           0000000000000020  0000000000000008  WA       0     0   
-      8
-
-      [25] .data             PROGBITS         0000000000601020  
-    00001020
-
-           0000000000000010  0000000000000000  WA       0     0   
-      8
-
-      [27] .comment          PROGBITS         0000000000000000  
-    00001030
-
-           0000000000000034  0000000000000001  MS       0     0   
-      1
-
-    
-
-  For our operating system, we only need the following section:
-
-  .text
-
-    This section holds all the compiled code of a program. 
-
-  .data
-
-    This section holds the initialized data of a program. Since 
-    the data are initialized with actual values, gcc allocates 
-    the section with actual byte in the executable binary.
-
-  .rodata
-
-    This section holds read-only data, such as fixed-size strings 
-    in a program, e.g. “Hello World”, and others.
-
-  .bss
-
-    This section, shorts for Block Started by Symbol, holds 
-    uninitialized data of a program. Unlike other sections, no 
-    space is allocated for this section in the image of the 
-    executable binary on disk. The section is allocated only when 
-    the program is loaded into main memory.
-
-  Other sections are mainly needed for dynamic linking, that is 
-  code linking at runtime for sharing between many programs. To 
-  enable such feature, an OS as a runtime environment must be 
-  presented. Since we run our OS on bare metal, we are 
-  effectively creating such environment. For simplicity, we won't 
-  add dynamic linking to our OS.
-
-  SYMTAB and DYNSYM These sections hold symbol table. A symbol 
-  table is an array of entries that describe symbols in a 
-  program. A symbol is a name assigned to an entity in a program. 
-  The types of these entities are also the types of symbols, and 
-  these are the possible types of an entity:
-
-  In the sample output, section 5 and 29 are symbol tables:
-
-    
-
-    [Nr] Name              Type             Address           
-    Offset
-
-         Size              EntSize          Flags  Link  Info  
-    Align
-
-    [ 5] .dynsym           DYNSYM           00000000004002b8  
-    000002b8
-
-         0000000000000048  0000000000000018   A       6     1     
-    8
-
-    ...
-
-    [29] .symtab           SYMTAB           0000000000000000  
-    00001068
-
-         0000000000000648  0000000000000018          30    47     
-    8
-
-    
 
     To show the symbol table:
 
