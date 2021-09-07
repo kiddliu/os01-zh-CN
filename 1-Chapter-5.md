@@ -533,236 +533,134 @@ Hex dump of section '.note.ABI-tag':
       0000000000000648  0000000000000018          30    47     8
 ```
 
+要显示符号表，执行：
 
+```bash
+$ readelf -s hello
+```
 
-    To show the symbol table:
+输出由两张符号表组成，对应于上面的`.dynsym`和`.symtab`两个节：
 
-    
+```text
+Symbol table '.dynsym' contains 4 entries:
+    Num:    Value          Size Type    Bind   Vis      Ndx Name
+      0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND 
+      1: 0000000000000000     0 FUNC    GLOBAL DEFAULT  UND puts@GLIBC_2.2.5 (2)
+      2: 0000000000000000     0 FUNC    GLOBAL DEFAULT  UND __libc_start_main@GLIBC_2.2.5 (2)
+      3: 0000000000000000     0 NOTYPE  WEAK   DEFAULT  UND __gmon_start__
+Symbol table '.symtab' contains 67 entries:
 
-    $ readelf -s hello
+    Num:    Value          Size Type    Bind   Vis      Ndx Name
+    ..........................................
+    59: 0000000000601040     0 NOTYPE  GLOBAL DEFAULT   26 _end
+    60: 0000000000400430    42 FUNC    GLOBAL DEFAULT   14 _start
+    61: 0000000000601038     0 NOTYPE  GLOBAL DEFAULT   26 __bss_start
+    62: 0000000000400526    32 FUNC    GLOBAL DEFAULT   14 main
+    63: 0000000000000000     0 NOTYPE  WEAK   DEFAULT  UND _Jv_RegisterClasses
+    64: 0000000000601038     0 OBJECT  GLOBAL HIDDEN    25 __TMC_END__
+    65: 0000000000000000     0 NOTYPE  WEAK   DEFAULT  UND _ITM_registerTMCloneTable
+    66: 00000000004003c8     0 FUNC    GLOBAL DEFAULT   11 _init
+```
 
-    
+*TLS* 表明符号与一个线程本地存储实体相关联。
 
-    Output consists of 2 symbol tables, corresponding to the two 
-    sections above, .dynsym and .symtab:
+*Num* 表示表中某个条目的索引。
 
-    
+*Value* 表示符号所在位置的虚拟内存地址。
 
-    Symbol table '.dynsym' contains 4 entries:
+*Size* 表示与符号相关联的实体的大小。
 
-       Num:    Value          Size Type    Bind   Vis      Ndx 
-    Name
+*Type* 是由表得出的符号类型，其中：
 
-         0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND 
+&nbsp;&nbsp;&nbsp;&nbsp;*NOTYPE* 表示符号的类型未被指定。
 
-         1: 0000000000000000     0 FUNC    GLOBAL DEFAULT  UND 
-    puts@GLIBC_2.2.5 (2)
+&nbsp;&nbsp;&nbsp;&nbsp;*OBJECT* 表示符号与一个数据对象相关。在Ｃ语言中，任何变量的定义都是`OBJECT`类型的。
 
-         2: 0000000000000000     0 FUNC    GLOBAL DEFAULT  UND 
-    __libc_start_main@GLIBC_2.2.5 (2)
+&nbsp;&nbsp;&nbsp;&nbsp;*FUNC* 表示符号与一个函数或其他可执行代码相关联。
 
-         3: 0000000000000000     0 NOTYPE  WEAK   DEFAULT  UND 
-    __gmon_start__
+&nbsp;&nbsp;&nbsp;&nbsp;*SECTION* 表示符号与一个节相关联，存在的主要目的是为了重定位。
 
-    Symbol table '.symtab' contains 67 entries:
+&nbsp;&nbsp;&nbsp;&nbsp;*FILE* 表示符号是与可执行二进制文件相关的源文件的名称。
 
-       Num:    Value          Size Type    Bind   Vis      Ndx 
-    Name
+&nbsp;&nbsp;&nbsp;&nbsp;*COMMON* 该符号标记了一个未初始化的变量。也就是说，当Ｃ语言中的一个变量被定义为没有初始值的全局变量，或使用`extern`关键字定义为外部变量。换句话说，这些变量停留在`.bss`节内。
 
-        ..........................................
+*Bind* 表示符号的范围，其中：
 
-        59: 0000000000601040     0 NOTYPE  GLOBAL DEFAULT   26 
-    _end
+&nbsp;&nbsp;&nbsp;&nbsp;*LOCAL* 是只在定义它们的对象文件中可见的符号。在Ｃ语言中，修饰符`static`把一个符号（比如一个变量/函数）标记为只在定义它的文件中局部使用。
 
-        60: 0000000000400430    42 FUNC    GLOBAL DEFAULT   14 
-    _start
+示例5.4.5 如果我们用修饰符`static`定义变量和函数。
 
-        61: 0000000000601038     0 NOTYPE  GLOBAL DEFAULT   26 
-    __bss_start
-
-        62: 0000000000400526    32 FUNC    GLOBAL DEFAULT   14 
-    main
-
-        63: 0000000000000000     0 NOTYPE  WEAK   DEFAULT  UND 
-    _Jv_RegisterClasses
-
-        64: 0000000000601038     0 OBJECT  GLOBAL HIDDEN    25 
-    __TMC_END__
-
-        65: 0000000000000000     0 NOTYPE  WEAK   DEFAULT  UND 
-    _ITM_registerTMCloneTable
-
-        66: 00000000004003c8     0 FUNC    GLOBAL DEFAULT   11 
-    _init
-
-    
-
-  TLS	The symbol is associated with a Thread-Local Storage 
-    entity.
-
-  Num is the index of an entry in a table.
-
-  Value is the virtual memory address where the symbol is 
-    located.
-
-  Size is the size of the entity associated with a symbol.
-
-  Type is a symbol type according to table.
-
-    NOTYPE The type of a symbol is not specified. 
-
-    OBJECT	The symbol is associated with a data object. In C, any 
-      variable definition is of OBJECT type.
-
-    FUNC The symbol is associated with a function or other 
-      executable code. 
-
-    SECTION	The symbol is associated with a section, and exists 
-      primarily for relocation.
-
-    FILE The symbol is the name of a source file associated with 
-      an executable binary.
-
-    COMMON	The symbol labels an uninitialized variable. That is, 
-      when a variable in C is defined as global variable without 
-      an initial value, or as an external variable using the 
-      extern keyword. In other words, these variables stay in 
-      .bss section.
-
-  Bind is the scope of a symbol. 
-
-    LOCAL are symbols that are only visible in the object files 
-      that defined them. In C, the static modifier marks a symbol 
-      (e.g. a variable/function) as local to only the file that 
-      defines it.
-
-      If we define variables and functions with static modifer:
-
-        static int global_static_var = 0;
-
-
+```c
+// hello.c
+static int global_static_var = 0;
 
 static void local_func() {
-
 }
 
-
-
 int main(int argc, char *argv[])
-
 {
-
     static int local_static_var = 0;
 
-
-
     return 0;
-
 }
+```
 
-      Then we get the static variables listed as local symbols 
-      after compiling:
+&nbsp;&nbsp;&nbsp;&nbsp;接着在编译之后，我们得到了被列为局部符号的静态变量：
 
-        
+```bash
+$ gcc -m32 hello.c -o hello
+$ readelf -s hello
+```
 
-        $ gcc -m32 hello.c -o hello
-
-        $ readelf -s hello
-
-        
-
-        
-
-        Symbol table '.dynsym' contains 5 entries:
-
-           Num:    Value  Size Type    Bind   Vis      Ndx Name
-
-             0: 00000000     0 NOTYPE  LOCAL  DEFAULT  UND 
-
-             1: 00000000     0 FUNC    GLOBAL DEFAULT  UND 
-        puts@GLIBC_2.0 (2)
-
-             2: 00000000     0 NOTYPE  WEAK   DEFAULT  UND 
-        __gmon_start__
-
-             3: 00000000     0 FUNC    GLOBAL DEFAULT  UND 
-        __libc_start_main@GLIBC_2.0 (2)
-
-             4: 080484bc     4 OBJECT  GLOBAL DEFAULT   16 
-        _IO_stdin_used
-
-        Symbol table '.symtab' contains 72 entries:
-
-           Num:    Value  Size Type    Bind   Vis      Ndx Name
-
-             0: 00000000     0 NOTYPE  LOCAL  DEFAULT  UND 
-
-                ......... output omitted .........
-
-            38: 0804a020     4 OBJECT  LOCAL  DEFAULT   26 
-        global_static_var
-
-            39: 0804840b     6 FUNC    LOCAL  DEFAULT   14 
-        local_func
-
-            40: 0804a024     4 OBJECT  LOCAL  DEFAULT   26 
-        local_static_var.1938
-
-         ......... output omitted .........
-
-        
-
-    GLOBAL	are symbols that are accessible by other object files 
-      when linking together. These symbols are primarily 
-      non-static functions and non-static global data. The extern 
-      modifier marks a symbol as externally defined elsewhere but 
-      is accessible in the final executable binary, so an extern 
-      variable is also considered GLOBAL.
-
-      Similar to the LOCAL example above, the output lists many 
-      GLOBAL symbols such as main:
-
-        Num:    Value  Size Type    Bind   Vis      Ndx Name
-
+```text
+Symbol table '.dynsym' contains 5 entries:
+    Num:    Value  Size Type    Bind   Vis      Ndx Name
+      0: 00000000     0 NOTYPE  LOCAL  DEFAULT  UND 
+      1: 00000000     0 FUNC    GLOBAL DEFAULT  UND puts@GLIBC_2.0 (2)
+      2: 00000000     0 NOTYPE  WEAK   DEFAULT  UND __gmon_start__
+      3: 00000000     0 FUNC    GLOBAL DEFAULT  UND __libc_start_main@GLIBC_2.0 (2)
+      4: 080484bc     4 OBJECT  GLOBAL DEFAULT   16 _IO_stdin_used
+Symbol table '.symtab' contains 72 entries:
+    Num:    Value  Size Type    Bind   Vis      Ndx Name
+      0: 00000000     0 NOTYPE  LOCAL  DEFAULT  UND 
         ......... output omitted .........
-
-         66: 080483e1    10 FUNC    GLOBAL DEFAULT   14 main
-
+    38: 0804a020     4 OBJECT  LOCAL  DEFAULT   26 global_static_var
+    39: 0804840b     6 FUNC    LOCAL  DEFAULT   14 local_func
+    40: 0804a024     4 OBJECT  LOCAL  DEFAULT   26 local_static_var.1938
         ......... output omitted .........
+```
 
-    WEAK are symbols whose definitions can be redefined. 
-      Normally, a symbol with multiple definitions are reported 
-      as an error by a compiler. However, this constraint is lax 
-      when a definition is explicitly marked as weak, which means 
-      the default implementation can be replaced by a different 
-      definition at link time.
+&nbsp;&nbsp;&nbsp;&nbsp;*GLOBAL* 指的是链接时其他对象文件可以访问的符号。这些符号主要是非静态函数以及非静态全局数据。`extern`修饰符标志着符号定义在其他地方，但是在最终的可执行二进制文件中可以访问到，所以一个`extern`变量也被认为是`GLOBAL`。
 
-      Suppose we have a default implementation of the function 
-      add:
+&nbsp;&nbsp;&nbsp;&nbsp;示例5.4.6 与上面的`LOCAL`例子类似，输出中列出了许多`GLOBAL`符号，如`main`。
 
-        #include <stdio.h>
+```text
+Num:    Value  Size Type    Bind   Vis      Ndx Name
+......... output omitted .........
+ 66: 080483e1    10 FUNC    GLOBAL DEFAULT   14 main
+......... output omitted .........
+```
 
+&nbsp;&nbsp;&nbsp;&nbsp;*WEAK* 指的是可以被重新定义的符号。通常情况下，有多个定义的符号会被编译器报告为一个错误。但是当一个定义被明确地标记为弱定义时，约束就放松了，这意味着在链接时默认的实现可以被另一个不同的定义所取代。
 
+&nbsp;&nbsp;&nbsp;&nbsp;示例5.4.7 设想我们有一个函数`add`的默认实现：
+
+```c
+#include <stdio.h>
 
 __attribute__((weak)) int add(int a, int b) {
-
     printf("warning: function is not implemented.\n");
-
     return 0;
-
 }
-
-
 
 int main(int argc, char *argv[])
-
 {
-
     printf("add(1,2) is %d\n", add(1,2));
-
     return 0;
-
 }
+```
+
+
 
         __attribute__((weak)) is a [margin:
 function attribute
