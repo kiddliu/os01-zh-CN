@@ -660,165 +660,77 @@ int main(int argc, char *argv[])
 }
 ```
 
+&nbsp;&nbsp;&nbsp;&nbsp;`__attribute__((weak))`是一个函数属性。*函数属性*提供了额外的信息，使编译器在处理它时使用与处理普通函数不同的方法。在这个例子中，弱属性使这个函数`add`成为一个弱函数，这意味着默认的实现可以在链接时被另一个的定义所取代。函数属性是一个编译器特性，而非标准Ｃ语言特性。
 
+&nbsp;&nbsp;&nbsp;&nbsp;如果我们没有在其它文件里提供另外的函数定义（必须在不同的文件中，否则`gcc`会报错），那么就会应用默认的实现。当函数`add`被调用时，就只打印出这样的信息：`"warning: function not implemented"`并返回０。
 
-        __attribute__((weak)) is a [margin:
-function attribute
-]function attribute. A function attributefunction attribute is 
-        extra information for a compiler to handle a function 
-        differently from a normal function. In this example, weak 
-        attribute makes the function add a weak function,which 
-        means the default implementation can be replaced by a 
-        different definition at link time. Function attribute is 
-        a feature of a compiler, not standard C.
+```bash
+$ ./hello 
+warning: function is not implemented.
+add(1,2) is 0
+```
 
-        If we do not supply a different function definition in a 
-        different file (must be in a different file, otherwise 
-        gcc reports as an error), then the default implementation 
-        is applied. When the function add is called, it only 
-        prints the message: "warning: function not 
-        implemented"and returns 0:
+&nbsp;&nbsp;&nbsp;&nbsp;但是，如果我们在另一个文件，比如`math.c`中提供了另外一个定义：
 
-        
-
-        $ ./hello 
-
-        warning: function is not implemented.
-
-        add(1,2) is 0
-
-        
-
-        However, if we supply a different definition in another 
-        file e.g. math.c:
-
-        int add(int a, int b) {
-
+```c
+// math.c
+int add(int a, int b) {
     return a + b;
-
 }
+```
 
-        and compile the two files together:
+&nbsp;&nbsp;&nbsp;&nbsp;然后把两个文件一起编译：
 
-        
+```bash
+$ gcc math.c hello.c -o hello
+```
 
-        $ gcc math.c hello.c -o hello
+&nbsp;&nbsp;&nbsp;&nbsp;这时再运行`hello`，就不会打印警告信息，而是返回了正确的值。
 
-        
+&nbsp;&nbsp;&nbsp;&nbsp;弱符号是这样一种机制：程序提供了默认的实现，但在链接时如果有更好的（比如更特定的、优化了的）实现，可以替换掉它。
 
-        Then, when running hello, no warning message is printed 
-        and the correct value is returned.
+*Vis* 表示符号的可见性。有下列值可供选择：
 
-        Weak symbol is a mechanism to provide a default 
-        implementation, but replaceable when a better 
-        implementation is available (e.g. more specialized and 
-        optimized) at link-time.
+表5.4.1 符号的可见性
 
-  Vis is the visibility of a symbol. The following values are 
-    available:
+| 值        | 描述 |
+|-----------|------------------------------------------|
+| DEFAULT | 可见性由符号的绑定类型指定。<ul><li>全局符号与弱符号在定义它的组件（可执行文件或是共享对象）之外是可见的。</li><li>本地符号是隐藏起来的。参见下面的`HIDDEN`。</li></ul> |
+| HIDDEN | 如果符号的名称对任何其他程序都不可见时，那么这个符号就是隐藏起来的。 |
+| PROTECTED | 当符号可以在当前运行程序或共享库之外被共享，且无法覆盖，那么它就受到保护的。也就是说，这个符号在使用它的各个可执行程序中只能有唯一定义。任何程序都不能再使用同一符号重新定义它。 |
+| INTERNAL | 符号的可见性特定于处理器，由处理器特定的ABI定义。 |
 
-    
-                                                                                                                                  [Table 6:
-Symbol Visibility
-]                                                                                                                                   
-    +------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | Value      | Description                                                                                                                                                                                                                                                                       |
-    +------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    +------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | DEFAULT    | The visibility is specified by the binding type of asymbol. 
+*Ndx* 是该符号所处节的索引。除了表示节索引的固定索引数字外，索引还有下面这些特殊的值：
 
-• Global and weak symbols are visible outside of their defining 
-  component (executable file or shared object).
+| 值 | 描述 |
+|----|------|
+| ABS | 索引不会因为任何符号的重新分配而改变。 |
+| COM | 索引指向一个未分配的公共块。 |
+| UND | 符号在当前对象文件中未定义，这意味着该符号依赖位于另一个文件中的实际定义。当对象文件引用运行时可用、来自共享库的符号时，就会出现未定义符号。 |
+| LORESERVE<br> HIRESERVE | `LORESERVE`是预留索引的下界。它的值为`0xff00`。<br> `HIREVERSE`是预留索引的上界。它的值为`0xffff`。<br> 操作系统预留了在`LORESERVE`和`HIRESERVE`之间的索引，它们不映射到任何实际的节头。 |
+| XINDEX | 索引大于`LORESERVE`。实际索引值包含在`SYMTAB_SHNDX`节，其中每个条目都是一个`Ndx`字段为`XINDEX`值的符号与实际索引值之间的映射。 |
+| Others | 有时，会出现`ANSI_COM`、`LARGE_COM`、`SCOM`、`SUND`这样的值。这意味着索引是处理器特定的。 |
 
-• Local symbols are hidden. See HIDDEN below.                                                     |
-    +------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | HIDDEN     | A symbol is hidden when the name is not visible to any other 
-program outside of its running program.                                                                                                                                                                             |
-    +------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | PROTECTED  | A symbol is protected when it is shared outside of its running 
-program or shared libary and cannot be overridden. That is, there 
-can only be one definition for this symbol across running 
-programs that use it. No program can define its own definition of 
-the same symbol. |
-    +------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | INTERNAL   | Visibility is processor-specific and is defined by 
-processor-specific ABI.                                                                                                                                                                                                       |
-    +------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    
+*Name* 表示符号的名称。
 
-  Ndx is the index of a section that the symbol is in. Aside from 
-    fixed index numbers that represent section indexes, index has 
-    these special values:
+示例5.4.8 Ｃ语言程序总是从符号`main`开始。在`.symtab`节的符号表中，`main`的条目是：
 
-    
-                                                                                                                                                 [Table 7:
-Symbol Index
-]                                                                                                                                                 
-    +-----------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | Value                 | Description                                                                                                                                                                                                                                                                                    |
-    +-----------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    +-----------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ABS                   | The index will not be changed by any symbol relocation.                                                                                                                                                                                                                                        |
-    +-----------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | COM                   | The index refers to an unallocated common block.                                                                                                                                                                                                                                               |
-    +-----------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | UND                   | The symbol is undefined in the current object file, which means 
-the symbol depends on the actual definition in another file. 
-Undefined symbols appears when the object file refers to symbols 
-that are available at runtime, from shared library.                                           |
-    +-----------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | LORESERVE
+```text
+Num:                Value  Size Type    Bind   Vis      Ndx Name
+ 62:     0000000000400526    32 FUNC    GLOBAL DEFAULT   14 main
+```
 
-HIRESERVE  | LORESERVE is the lower boundary of the reserve indexes. Its value 
-is 0xff00.
+这个条目展示了：
 
-HIREVERSE is the upper boundary of the reserve indexes. Its value 
-is 0xffff.
+* `main`是表中的第62个条目。
+* `main`从地址`0x0000000000400526`开始。
+* `main`占据了32个字节。
+* `main`是一个函数。
+* `main`在全局范围内。
+* `main`对于使用它的其他对象文件是可见的。
+* `main`位于第14节内，也就是`.text`。这符合逻辑，因为`.text`节包含了所有的程序代码。
 
-The operating system reserves exclusive indexes between LORESERVE 
-and HIRESERVE, which do not map to any actual section header. |
-    +-----------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | XINDEX                | The index is larger than LORESERVE. The actual value will be 
-contained in the section SYMTAB_SHNDX, where each entry is a 
-mapping between a symbol, whose Ndx field is a XINDEX value, and 
-the actual index value.                                                                          |
-    +-----------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | Others                | Sometimes, values such as ANSI_COM, LARGE_COM, SCOM, SUND appear. 
-This means that the index is processor-specific.                                                                                                                                                                            |
-    +-----------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    
 
-  Name is the symbol name.
-
-  A C application program always starts from symbol main. The 
-  entry for main in the symbol table in .symtab section is:
-
-    
-
-    Num:                Value  Size Type    Bind   Vis      Ndx 
-    Name
-
-     62:     0000000000400526    32 FUNC    GLOBAL DEFAULT   14 
-    main
-
-    
-
-  The entry shows that:
-
-  • main is the 62[superscript:th] entry in the table.
-
-  • main starts at address 0x0000000000400526.
-
-  • main consumes 32 bytes.
-
-  • main is a function.
-
-  • main is in global scope.
-
-  • main is visible to other object files that use it.
-
-  • main is inside the 14[superscript:th] section, which is .text. This is logical, since .text holds all 
-    program code.
 
   STRTAB hold a table of null-terminated strings, called string 
   table. The first and last byte of this section is always a NULL 
