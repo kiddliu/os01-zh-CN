@@ -424,7 +424,7 @@ $ readelf -x 25 hello
 $ readelf -x .data hello
 ```
 
-如果某个节包含字符串，例如字符串符号表，可以用`-p`标志代替`-x`标志。
+如果某个节保存了字符串，例如字符串符号表，可以用`-p`标志代替`-x`标志。
 
 `NULL`标志着此节头是未启用的，并且没有与之关联的节。`NULL`节总是节头表的第一条目。这意味着，任何有意义的节都从索引`1`开始的。
 
@@ -708,7 +708,7 @@ $ gcc math.c hello.c -o hello
 | COM | 索引指向一个未分配的公共块。 |
 | UND | 符号在当前对象文件中未定义，这意味着该符号依赖位于另一个文件中的实际定义。当对象文件引用运行时可用、来自共享库的符号时，就会出现未定义符号。 |
 | LORESERVE<br> HIRESERVE | `LORESERVE`是预留索引的下界。它的值为`0xff00`。<br> `HIREVERSE`是预留索引的上界。它的值为`0xffff`。<br> 操作系统预留了在`LORESERVE`和`HIRESERVE`之间的索引，它们不映射到任何实际的节头。 |
-| XINDEX | 索引大于`LORESERVE`。实际索引值包含在`SYMTAB_SHNDX`节，其中每个条目都是一个`Ndx`字段为`XINDEX`值的符号与实际索引值之间的映射。 |
+| XINDEX | 索引大于`LORESERVE`。实际索引值保存在`SYMTAB_SHNDX`节，其中每个条目都是一个`Ndx`字段为`XINDEX`值的符号与实际索引值之间的映射。 |
 | Others | 有时，会出现`ANSI_COM`、`LARGE_COM`、`SCOM`、`SUND`这样的值。这意味着索引是处理器特定的。 |
 
 *Name* 表示符号的名称。
@@ -728,257 +728,124 @@ Num:                Value  Size Type    Bind   Vis      Ndx Name
 * `main`是一个函数。
 * `main`在全局范围内。
 * `main`对于使用它的其他对象文件是可见的。
-* `main`位于第14节内，也就是`.text`。这符合逻辑，因为`.text`节包含了所有的程序代码。
+* `main`位于第14节内，也就是`.text`。这符合逻辑，因为`.text`节保存了所有的程序代码。
+
+*STRTAB* 保存了一张以空值为结尾的字符串构成的表，称为字符串表。这个节的首尾字节总是一个`NULL`字符。字符串表节的存在是因为一个字符串可以在表示符号和部分的名称时被多个节重复使用，，所以像`readelf`或`objdump`这样的程序可以用人们可以读懂的文本替代原始的十六进制地址来显示程序中各种对象，例如变量、函数、节的名称等等。
+
+在示例输出中，第`28`和第`30`节是STRTAB类型的。
+
+```text
+[Nr] Name              Type             Address               Offset
+      Size              EntSize          Flags  Link  Info      Align
+[28] .shstrtab         STRTAB           0000000000000000      000018b6
+      000000000000010c  0000000000000000           0     0         1
+[30] .strtab           STRTAB           0000000000000000      000016b0
+      0000000000000206  0000000000000000           0     0         1
+```
+
+`.shstrtab`保存了所有的节名。
+
+`.strtab`保存了Ｃ程序中符号，例如变量名、函数名、结构体名等等，但是固定大小以零结尾的Ｃ字符串除外；Ｃ字符串保存在`.rodata`节。
+
+示例5.4.10 这些节内的字符串可以用下列命令检查：
+
+```bash
+$ readelf -p 29 hello
+```
+
+输出显示了所有的节名，并且在左边显示了到`.shstrtab`表的偏移量（也就是字符串的索引）：
+
+```text
+String dump of section '.shstrtab':  
+  [     1]  .symtab
+  [     9]  .strtab
+  [    11]  .shstrtab
+  [    1b]  .interp
+  [    23]  .note.ABI-tag
+  [    31]  .note.gnu.build-id
+  [    44]  .gnu.hash
+  [    4e]  .dynsym
+  [    56]  .dynstr
+  [    5e]  .gnu.version
+  [    6b]  .gnu.version_r
+  [    7a]  .rela.dyn
+  [    84]  .rela.plt
+  [    8e]  .init
+  [    94]  .plt.got
+  [    9d]  .text
+  [    a3]  .fini
+  [    a9]  .rodata
+  [    b1]  .eh_frame_hdr
+  [    bf]  .eh_frame
+  [    c9]  .init_array
+  [    d5]  .fini_array
+  [    e1]  .jcr
+  [    e6]  .dynamic
+  [    ef]  .got.plt
+  [    f8]  .data
+  [    fe]  .bss
+  [   103]  .comment
+```
+
+字符串表实际的实现是以零结尾字符串的连续数组。字符串的索引是字符串首字符在数组内的位置。例如，在上面的字符串表中，`.symtab`在数组中的索引是1（索引0是`NULL`字符）。`.symtab`的长度是7，加上`NULL`字符，总共占据8个字节。于是`.strtab`从索引9开始，以此类推。
+
+![图5.4.1 `.shstrtab`内的字符串表。红色的数字表示一个字符串的起始位置。](images/05/5.4.1.png)
+
+同样，`.strtab`的输出也是如此：
+
+```text
+String dump of section '.strtab':
+  [     1]  crtstuff.c
+  [     c]  __JCR_LIST__
+  [    19]  deregister_tm_clones
+  [    2e]  __do_global_dtors_aux
+  [    44]  completed.7585
+  [    53]  __do_global_dtors_aux_fini_array_entry
+  [    7a]  frame_dummy
+  [    86]  __frame_dummy_init_array_entry
+  [    a5]  hello.c
+  [    ad]  __FRAME_END__
+  [    bb]  __JCR_END__
+  [    c7]  __init_array_end
+  [    d8]  _DYNAMIC
+  [    e1]  __init_array_start
+  [    f4]  __GNU_EH_FRAME_HDR
+  [   107]  _GLOBAL_OFFSET_TABLE_
+  [   11d]  __libc_csu_fini
+  [   12d]  _ITM_deregisterTMCloneTable
+  [   149]  j
+  [   14b]  _edata
+  [   152]  __libc_start_main@@GLIBC_2.2.5
+  [   171]  __data_start
+  [   17e]  __gmon_start__
+  [   18d]  __dso_handle
+  [   19a]  _IO_stdin_used
+  [   1a9]  __libc_csu_init
+  [   1b9]  __bss_start
+  [   1c5]  main
+  [   1ca]  _Jv_RegisterClasses
+  [   1de]  __TMC_END__
+  [   1ea]  _ITM_registerTMCloneTable
+```
+
+*HASH* 保存了一个符号哈希表，用来支持符号表访问。
 
+*DYNAMIC* 保存了动态链接的信息。
 
+*NOBITS* 与`PROGBITS`类似，但不占用空间。
 
-  STRTAB hold a table of null-terminated strings, called string 
-  table. The first and last byte of this section is always a NULL 
-  character. A string table section exists because a string can 
-  be reused by more than one section to represent symbol and 
-  section names, so a program like readelf or objdump can display 
-  various objects in a program, e.g. variable, functions, section 
-  names, in a human-readable text instead of its raw hex address.
+示例5.4.11 `.bss`节包含了未初始化的数据，这意味着这一节内的字节可以有任何值。在操作系统把该节加载到主内存之前，没有必要为磁盘上的二进制镜像分配空间以减少二进制文件的大小。下面是示例输出中`.bss`节的细节。
 
-  In the sample output, section 28 and 30 are of STRTAB type:
+```text
+[Nr] Name              Type             Address             Offset
+      Size              EntSize          Flags  Link  Info    Align
+[26] .bss              NOBITS           0000000000601038    00001038
+      0000000000000008  0000000000000000  WA       0     0     1
+[27] .comment          PROGBITS         0000000000000000    00001038
+      0000000000000034  0000000000000001  MS       0     0     1
+```
 
-    
-
-    [Nr] Name              Type             Address           
-    Offset
-
-         Size              EntSize          Flags  Link  Info  
-    Align
-
-    [28] .shstrtab         STRTAB           0000000000000000  
-    000018b6
-
-         000000000000010c  0000000000000000           0     0     
-    1
-
-    [30] .strtab           STRTAB           0000000000000000  
-    000016b0
-
-         0000000000000206  0000000000000000           0     0     
-    1
-
-    
-
-  .shstrtab holds all the section names.
-
-  .strtab holds the symbols e.g. variable names, function names, 
-    struct names, etc., in a C program, but not fixed-size 
-    null-terminated C strings; the C strings are kept in .rodata 
-    section.
-
-  Strings in those section can be inspected with the command:
-
-    
-
-    $ readelf -p 29 hello
-
-    
-
-    The output shows all the section names, with the offset (also 
-    the string index) into .shstrtab the table to the left:
-
-    
-
-    String dump of section '.shstrtab':  
-
-      [     1]  .symtab
-
-      [     9]  .strtab
-
-      [    11]  .shstrtab
-
-      [    1b]  .interp
-
-      [    23]  .note.ABI-tag
-
-      [    31]  .note.gnu.build-id
-
-      [    44]  .gnu.hash
-
-      [    4e]  .dynsym
-
-      [    56]  .dynstr
-
-      [    5e]  .gnu.version
-
-      [    6b]  .gnu.version_r
-
-      [    7a]  .rela.dyn
-
-      [    84]  .rela.plt
-
-      [    8e]  .init
-
-      [    94]  .plt.got
-
-      [    9d]  .text
-
-      [    a3]  .fini
-
-      [    a9]  .rodata
-
-      [    b1]  .eh_frame_hdr
-
-      [    bf]  .eh_frame
-
-      [    c9]  .init_array
-
-      [    d5]  .fini_array
-
-      [    e1]  .jcr
-
-      [    e6]  .dynamic
-
-      [    ef]  .got.plt
-
-      [    f8]  .data
-
-      [    fe]  .bss
-
-      [   103]  .comment
-
-    
-
-    The actual implementation of a string table is a contiguous 
-    array of null-terminated strings. The index of a string is 
-    the position of its first character in the array. For 
-    example, in the above string table, .symtab is at index 1 in 
-    the array (NULL character is at index 0). The length of 
-    .symtab is 7, plus the NULL character, which occurs 8 bytes 
-    in total. So, .strtab starts at index 9, and so on.
-
-    
-
-    
-            +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+----+
-                | 00  | 01  | 02  | 03  | 04  | 05  | 06  | 07  | 08  | 09  | 0a  | 0b  | 0c  | 0d  | 0e  | 0f |
-    +-----------+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+----+
-    | 00000000  | \0  | .   | s   | y   | m   | t   | a   | b   | \0  | .   | s   | t   | r   | t   | a   | b  |
-    +-----------+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+----+
-                                                                                                                
-                +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+----+
-                | 00  | 01  | 02  | 03  | 04  | 05  | 06  | 07  | 08  | 09  | 0a  | 0b  | 0c  | 0d  | 0e  | 0f |
-    +-----------+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+----+
-    | 00000010  | \0  | .   | s   | h   | s   | t   | r   | t   | a   | b   | \0  | .   | i   | n   | t   | e  |
-    +-----------+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+----+
-                                                .... and so on ....                                             
-    
-
-    
-
-    
-
-
-
-    Similarly, the output of .strtab:
-
-    
-
-    String dump of section '.strtab':
-
-      [     1]  crtstuff.c
-
-      [     c]  __JCR_LIST__
-
-      [    19]  deregister_tm_clones
-
-      [    2e]  __do_global_dtors_aux
-
-      [    44]  completed.7585
-
-      [    53]  __do_global_dtors_aux_fini_array_entry
-
-      [    7a]  frame_dummy
-
-      [    86]  __frame_dummy_init_array_entry
-
-      [    a5]  hello.c
-
-      [    ad]  __FRAME_END__
-
-      [    bb]  __JCR_END__
-
-      [    c7]  __init_array_end
-
-      [    d8]  _DYNAMIC
-
-      [    e1]  __init_array_start
-
-      [    f4]  __GNU_EH_FRAME_HDR
-
-      [   107]  _GLOBAL_OFFSET_TABLE_
-
-      [   11d]  __libc_csu_fini
-
-      [   12d]  _ITM_deregisterTMCloneTable
-
-      [   149]  j
-
-      [   14b]  _edata
-
-      [   152]  __libc_start_main@@GLIBC_2.2.5
-
-      [   171]  __data_start
-
-      [   17e]  __gmon_start__
-
-      [   18d]  __dso_handle
-
-      [   19a]  _IO_stdin_used
-
-      [   1a9]  __libc_csu_init
-
-      [   1b9]  __bss_start
-
-      [   1c5]  main
-
-      [   1ca]  _Jv_RegisterClasses
-
-      [   1de]  __TMC_END__
-
-      [   1ea]  _ITM_registerTMCloneTable
-
-    
-
-  HASH holds a symbol hash table, which supports symbol table 
-  access.
-
-  DYNAMIC holds information for dynamic linking. 
-
-  NOBITS is similar to PROGBITS but occupies no space.
-
-  .bss section holds uninitialized data, which means the bytes in 
-  the section can have any value. Until a operating system 
-  actually loads the section into main memory, there is no need 
-  to allocate space for the binary image on disk to reduce the 
-  size of a binary file. Here is the details of .bss from the 
-  example output:
-
-  
-
-  [Nr] Name              Type             Address           
-  Offset
-
-       Size              EntSize          Flags  Link  Info  
-  Align
-
-  [26] .bss              NOBITS           0000000000601038  
-  00001038
-
-       0000000000000008  0000000000000000  WA       0     0     1 
-    
-
-  [27] .comment          PROGBITS         0000000000000000  
-  00001038
-
-       0000000000000034  0000000000000001  MS       0     0     1 
-
-  
+148
 
   In the above output, the size of the section is only 8 bytes, 
   while the offsets of both sections are the same, which means 
