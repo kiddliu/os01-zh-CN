@@ -845,96 +845,52 @@ String dump of section '.strtab':
       0000000000000034  0000000000000001  MS       0     0     1
 ```
 
-148
+在上面的输出中，这一节的大小只有8个字节，而两个节的偏移量是一样的，这意味着`.bss`没有占据磁盘上可执行二进制文件的任何空间。
 
-  In the above output, the size of the section is only 8 bytes, 
-  while the offsets of both sections are the same, which means 
-  .bss consumes no byte of the executable binary on disk. 
+我们也注意到`.comment`节没有起始地址。这意味着当可执行二进制文件被加载到内存时，这一节会被丢掉。
 
-  Notice that the .comment section has no starting address. This 
-  means that this section is discarded when the executable binary 
-  is loaded into memory.
+`REL` 保存了没有明确加数的重定位条目。这种类型将在第八章第一节中详细解释。
 
-  REL holds relocation entries without explicit addends. This 
-  type will be explained in details in [sec:Understand-relocations-with-readelf]
+`RELA` 保存了有明确加数的重定位条目。这种类型将在第八章第一节中详细解释。
 
-  RELA holds relocation entries with explicit addends. This type 
-  will be explained in details in [sec:Understand-relocations-with-readelf]
+`INIT_ARRAY` 是用于程序初始化的函数指针数组。当应用程序运行时，在进入`main()`之前，`.init`与本节中的初始化代码会首先被执行。这个数组中的首元素是一个被忽略的函数指针。
 
-  INIT_ARRAY is an array of function pointers for program 
-  initialization. When an application program runs, before 
-  getting to main(), initialization code in .init and this 
-  section are executed first. The first element in this array is 
-  an ignored function pointer. 
+&nbsp;&nbsp;&nbsp;&nbsp;当我们可以在`main()`函数中包含初始化代码时，这可能没有意义。然而，对于没有`main()`的共享对象文件来说，这一节可以确保对象文件的初始化代码可以在任何其他代码之前执行，以确保`main`代码有一个适当的环境来正常运行。这也使得一个对象文件更加模块化，因为主程序代码不需要为使用特定对象文件而负责初始化适当的环境，这是对象文件本身的工作。这种明确的划分使代码更加简洁。
 
-  It might not make sense when we can include initialization code 
-  in the main() function. However, for shared object files where 
-  there are no main(), this section ensures that the 
-  initialization code from an object file executes before any 
-  other code to ensure a proper environment for main code to run 
-  properly. It also makes an object file more modularity, as the 
-  main application code needs not to be responsible for 
-  initializing a proper environment for using a particular object 
-  file, but the object file itself. Such a clear division makes 
-  code cleaner.
+&nbsp;&nbsp;&nbsp;&nbsp;然而简单起见，我们将不在我们的操作系统中使用任何`.init`和`INIT_ARRAY`部分，因为初始化环境是操作系统领域的一部分。
 
-  However, we will not use any .init and INIT_ARRAY sections in 
-  our operating system, for simplicity, as initializing an 
-  environment is part of the operating-system domain.
+示例5.4.2 要使用`INIT_ARRAY`，我们只需要用`constructor`属性标记函数：
 
-  To use the INIT_ARRAY, we simply mark a function with the 
-  attribute constructor:
-
-    #include <stdio.h>
-
-
+```c
+#include <stdio.h>
 
 __attribute__((constructor)) static void init1(){
-
     printf("%s\n", __FUNCTION__);
-
 }
-
-
 
 __attribute__((constructor)) static void init2(){
-
     printf("%s\n", __FUNCTION__);
-
 }
-
-
-
-
 
 int main(int argc, char *argv[])
-
 {
-
     printf("hello world\n");
 
-
-
     return 0;
-
 }
+```
 
-    The program automatically calls the constructor without 
-    explicitly invoking it:
+无需显式调用，程序会自动调用这些构造函数：
 
-    
+```bash
+$ gcc -m32 hello.c -o hello
+$ ./hello 
+init1
+init2
+hello world
+```
 
-    $ gcc -m32 hello.c -o hello
 
-    $ ./hello 
-
-    init1
-
-    init2
-
-    hello world
-
-    
 
   
 
