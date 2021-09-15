@@ -890,131 +890,74 @@ init2
 hello world
 ```
 
+示例5.4.13 可以选择给构造函数分配一个从`101`开始的优先级。优先级`0`到`100`是为`gcc`保留的。如果想让`init2`在`init1`之前运行，我们可以给它一个更高的优先级。
 
+```c
+#include <stdio.h>
 
-  
-
-  Optionally, a constructor can be assigned with a priority from 
-  101 onward. The priorities from 0 to 100 are reserved for gcc. 
-  If we want init2 to run before init1, we give it a higher 
-  priority:
-
-    #include <stdio.h>
-
-
-
-__attribute__((constructor(102))) static void init1(){
-
+__attribute__((constructor(102))) static void init1() {
     printf("%s\n", __FUNCTION__);
-
 }
 
-
-
-__attribute__((constructor(101))) static void init2(){
-
+__attribute__((constructor(101))) static void init2() {
     printf("%s\n", __FUNCTION__);
-
 }
-
-
-
-
 
 int main(int argc, char *argv[])
-
 {
-
     printf("hello world\n");
 
-
-
     return 0;
-
 }
+```
 
-    The call order should be exactly as specified:
+调用的顺序这下应该完全按照指定的方式进行：
 
+```bash
+$ gcc -m32 hello.c -o hello
+$ ./hello
+init2
+init1
+hello world
+```
   
-
-  $ gcc -m32 hello.c -o hello
-
-  $ ./hello
-
-  init2
-
-  init1
-
-  hello world
-
+也可以用另一种方法添加初始化函数：
   
-
-  
-
-  We can add initialization functions using another method:
-
-    #include <stdio.h>
-
-
+```c
+#include <stdio.h>
 
 void init1() {
-
     printf("%s\n", __FUNCTION__);
-
 }
-
-
 
 void init2() {
-
     printf("%s\n", __FUNCTION__);
-
 }
-
-
 
 /* Without typedef, init is a definition of a function pointer.
-
-   With typedef, init is a declaration of a type.*/
-
+   With typedef, init is a declaration of a type.
+*/
 typedef void (*init)();
 
-
-
-__attribute__((section(".init_array"))) init init_arr[2] = 
-{init1, init2};
-
-
+__attribute__((section(".init_array"))) init init_arr[2] = {init1, init2};
 
 int main(int argc, char *argv[])
-
 {
-
     printf("hello world!\n");
 
-
-
     return 0;
-
 }
+```
 
-    The attribute section(“...”) put a function into a particular 
-    section rather then the default .text. In this example, it is 
-    .init_arary. Again, the program automatically calls the 
-    constructors without explicitly invoking it:
+属性`section("...")`将一个函数放入一个特定的节，而不是默认的`.text`。在这个例子中，它是`.init_array`。与之前一样，程序会自动调用这些构造函数，无需显示调用：
 
-    
-
-    $ gcc -m32 hello.c -o hello
-
-    $ ./hello 
-
-    init1
-
-  init2
-
-  hello world!
-
+```bash
+$ gcc -m32 hello.c -o hello
+$ ./hello 
+init1
+init2
+hello world!
+```
     
 
   FINI_ARRAY is an array of function pointers for program 
