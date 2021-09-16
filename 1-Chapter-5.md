@@ -958,209 +958,106 @@ init1
 init2
 hello world!
 ```
-    
 
-  FINI_ARRAY is an array of function pointers for program 
-  termination, called after exiting main(). If the application 
-  terminate abnormally, such as through abort() call or a crash, 
-  the .finit_array is ignored.
+`FINI_ARRAY` 是一组用于程序终止的函数指针，在`main()`退出后调用。如果应用程序异常退出，比如通过`abort()`调用或是因为崩溃，`.finit_array`会被忽略。
 
-  A destructor is automatically called after exiting main(), if 
-  one or more available:
+在`main()`退出以后，如果有一个或多个析构函数可用，就会自动调用它们：
 
-  #include <stdio.h>
+```c
+#include <stdio.h>
 
-
-
-__attribute__((destructor)) static void destructor(){
-
+__attribute__((destructor)) static void destructor() {
     printf("%s\n", __FUNCTION__);
-
 }
 
-
-
-int main(int argc, char *argv[])
-
-{
-
+int main(int argc, char *argv[]) {
     printf("hello world\n");
 
-
-
     return 0;
-
 }
+```
 
-  
+```bash
+$ gcc -m32 hello.c -o hello
+$ ./hello 
+hello world
+destructor
+```
 
-  $ gcc -m32 hello.c -o hello
+`PREINIT_ARRAY` 是一组函数指针，在`INIT_ARRAY`中所有初始化函数之前调用。
 
-  $ ./hello 
+为了使用`.preinit_array`，将函数放入此部分的唯一方法是使用属性`section()`：
 
-  hello world
-
-  destructor
-
-  
-
-  PREINIT_ARRAY is an array of function pointers that are invoked 
-  before all other initialization functions in INIT_ARRAY.
-
-  To use the .preinit_array, the only way to put functions into 
-  this section is to use the attribute section():
-
-  #include <stdio.h>
-
-
+```c
+#include <stdio.h>
 
 void preinit1() {
-
     printf("%s\n", __FUNCTION__);
-
 }
-
-
 
 void preinit2() {
-
     printf("%s\n", __FUNCTION__);
-
 }
-
-
 
 void init1() {
-
     printf("%s\n", __FUNCTION__);
-
 }
-
-
 
 void init2() {
-
     printf("%s\n", __FUNCTION__);
-
 }
 
-
-
-
-
 typedef void (*preinit)();
-
 typedef void (*init)();
 
 
 
 __attribute__((section(".preinit_array"))) preinit preinit_arr[2] = 
 {preinit1, preinit2};
-
 __attribute__((section(".init_array"))) init init_arr[2] = 
 {init1, init2};
 
-
-
-int main(int argc, char *argv[])
-
-{
-
+int main(int argc, char *argv[]) {
     printf("hello world!\n");
 
-
-
     return 0;
-
 }
+```
 
-  
+```bash
+$ gcc -m32 hello2.c -o hello2
+$ ./hello2
+preinit1
+preinit2
+init1
+init2
+hello world!
+```
 
-  $ gcc -m32 hello2.c -o hello2
+`GROUP` 定义了一个节组（section group），即出现在不同的对象文件中的同一节，在合并到最终的可执行二进制文件中时只保留一份，位于其他对象文件中的剩余部分会被丢弃。这个节只与`C++`的对象文件有关，所以我们不做进一步研究。
 
-  $ ./hello2
+`SYMTAB_SHNDX` 是包含扩展节索引（extended section indexes）的节，这些索引与一个符号表相关联。只有当符号表中一个条目的`Ndx`值超过`LORESERVE`值时，这个节才会出现。然后，这个节把符号映射到对应节头的实际索引位置。
 
-  preinit1
+在了解了节的类型之后，我们就可以理解`Link`和`Info`字段中数字的含义了：
 
-  preinit2
+| 类型 | Link | Info |
+|---|---|---|
+| DYNAMIC | 节中条目使用动态字符串表的节索引。 | 0 |
+| HASH<br>GNU_HASH | 哈希表应用到的符号表的节索引。 | 0 |
+| REL<br>RELA | 相关符号表的节索引 | 应用了重新分配后的节索引 |
+| SYMTAB<br>DYNSYM | 相关符号表的节索引 | 最后一个本地符号的符号表索引 + 1。 |
+| GROUP | 相关符号表的节索引 | 相关符号表中某项的符号索引。指定的符号表项名称为节组提供了签名。 |
+| SYMTAB_SHNDX | 相关符号表的节头索引 |  |
 
-  init1
+习题5.4.1 确认`SYMTAB`节`Link`字段的值是`STRTAB`节的索引。
 
-  init2
+习题5.4.2 确认`SYMTAB`节`Info`字段的值是是最后一个本地符号的索引加1。这意味着在符号表中，从`Info`字段列出的索引开始，就再也没有本地符号出现了。
 
-  hello world!
+习题5.4.3 确认`REL`节`Info`字段的值是`SYMTAB`节的索引。
 
-  
-
-  GROUP defines a section group, which is the same section that 
-  appears in different object files but when merged into the 
-  final executable binary file, only one copy is kept and the 
-  rest in other object files are discarded. This section is only 
-  relevant in C++ object files, so we will not examine further.
-
-  SYMTAB_SHNDX is a section containing extended section indexes, 
-  that are associated with a symbol table. This section only 
-  appears when the Ndx value of an entry in the symbol table 
-  exceeds the LORESERVE value. This section then maps between a 
-  symbol and an actual index value of a section header.
-
-Upon understanding section types, we can understand the number in 
-Link and Info fields:
-
-
-
-
-+-----------------+--------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Type            | Link                                                                           | Info                                                                                                                                                    |
-+-----------------+--------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------+
-+-----------------+--------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------+
-| DYNAMIC         | Entries in this section uses the section index of the dynamic 
-string table.   | 0                                                                                                                                                       |
-+-----------------+--------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------+
-| HASH
-
-GNU_HASH  | The section index of the symbol table to which the hash table 
-applies.        | 0                                                                                                                                                       |
-+-----------------+--------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------+
-| REL
-
-RELA       | The section index of the associated symbol table.                              | The section index to which the relocation applies.                                                                                                      |
-+-----------------+--------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------+
-| SYMTAB
-
-DYNSYM  | The section index of the associated string table.                              | One greater than the symbol table index of the last local symbol.                                                                                       |
-+-----------------+--------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------+
-| GROUP           | The section index of the associated symbol table.                              | The symbol index of an entry in the associated symbol table. The 
-name of the specified symbol table entry provides a signature for 
-the section group. |
-+-----------------+--------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------+
-| SYMTAB_SHNDX    | The section header index of the associated symbol table.                       |                                                                                                                                                         |
-+-----------------+--------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------+
+习题5.4.4 确认`REL`节`Link`字段的值是应用了重分配之后的节索引。例如，如果这个节是`.rel.text`，那么重分配的节应该是`.text`。
 
 
-
-
-Verify that the value of the Link field of a SYMTAB section is 
-the index of a STRTAB section.
-
-
-
-Verify that the value of the Info field of a SYMTAB section is 
-the index of last local symbol + 1. It means, in the symbol 
-table, from the index listed by Info field onward, no local 
-symbol appears.
-
-
-
-Verify that the value of the Info field of a REL section is the 
-index of the SYMTAB section.
-
-
-
-Verify that the value of the Link field of a REL section is the 
-index of the section where relocation is applied. For example. if 
-the section is .rel.text, then the relocating section should be 
-.text.
 
   Program header table<sec:Program-header-table>
 
