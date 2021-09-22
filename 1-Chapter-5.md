@@ -1057,256 +1057,123 @@ hello world!
 
 习题5.4.4 确认`REL`节`Link`字段的值是应用了重分配之后的节索引。例如，如果这个节是`.rel.text`，那么重分配的节应该是`.text`。
 
+## 5.5 程序头表（program header table）
 
+程序头表是程序头组成的数组，在运行时定义了程序的内存布局。
 
-  Program header table<sec:Program-header-table>
+程序头是对程序段（program segment）的描述。
 
-A program header tableprogram header table is an array of program 
-headers that defines the memory layout of a program at runtime. 
+而程序段是相关节（section）的集合。一个段包含零或多个节。操作系统在加载程序时，只使用段，而不是节。为了查看程序头表内的信息，我们使用`readelf`的`-l`选项。
 
-A program headerprogram header is a description of a program 
-segment.
-
-A program segmentprogram segment is a collection of related 
-sections. A segment contains zero or more sections. An operating 
-system when loading a program, only use segments, not sections. 
-To see the information of a program header table, we use the -l 
-option with readelf:
-
-
-
+```bash
 $ readelf -l <binary file>
+```
+
+与节类似，程序头也有类型:
+
+*PHDR* 描述了程序头表本身所在的位置和大小，无论是在文件中还是在程序的内存映像中。
+
+*INTERP* 指明了一个以空结尾的路径名称，程序在链接运行时库时调用位于这个位置的解释器。
+
+*LOAD* 指明了一个可加载的段。即，这个段被加载到主内存中。
+
+*DYNAMIC* 描述了动态链接的信息。
+
+*NOTE* 指明了辅助信息所在的位置和大小。
+
+*TLS* 描述了线程本地存储模板，它是由所有带有`TLS`标志的节组合而成的。
+
+*GNU_STACK* 表示程序的堆栈是否应该是可执行的。Linux内核使用了这种类型。
+
+段还有权限设置，值可以是以下三种的组合：
+
+* 可读取（R）
+* 可写入（W）
+* 可执行（E）
+
+表5.5.1 段的权限
+
+| 权限 | 描述  |
+| --- | ------ |
+| R   | 可读取 |
+| W   | 可写入 |
+| E   | 可执行 |
+
+---
+
+示例5.5.1 获取程序头表的命令：
+
+```bash
+$ readelf -l hello
+```
+
+输出：
+
+```text
+Elf file type is EXEC (Executable file)
+Entry point 0x400430
+There are 9 program headers, starting at offset 64
+Program Headers:
+  Type           Offset             VirtAddr           PhysAddr
+                  FileSiz            MemSiz              Flags  Align
+  PHDR           0x0000000000000040 0x0000000000400040 0x0000000000400040
+                  0x00000000000001f8 0x00000000000001f8  R E    8
+  INTERP         0x0000000000000238 0x0000000000400238 0x0000000000400238
+                  0x000000000000001c 0x000000000000001c  R      1
+      [Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]
+  LOAD           0x0000000000000000 0x0000000000400000 0x0000000000400000
+                  0x000000000000070c 0x000000000000070c  R E    200000
+  LOAD           0x0000000000000e10 0x0000000000600e10 0x0000000000600e10
+                  0x0000000000000228 0x0000000000000230  RW     200000
+  DYNAMIC        0x0000000000000e28 0x0000000000600e28 0x0000000000600e28
+                  0x00000000000001d0 0x00000000000001d0  RW     8
+  NOTE           0x0000000000000254 0x0000000000400254 0x0000000000400254
+                  0x0000000000000044 0x0000000000000044  R      4
+  GNU_EH_FRAME   0x00000000000005e4 0x00000000004005e4 0x00000000004005e4
+                  0x0000000000000034 0x0000000000000034  R      4
+  GNU_STACK      0x0000000000000000 0x0000000000000000 0x0000000000000000
+                  0x0000000000000000 0x0000000000000000  RW     10
+  GNU_RELRO      0x0000000000000e10 0x0000000000600e10 0x0000000000600e10
+                  0x00000000000001f0 0x00000000000001f0  R      1
+Section to Segment mapping:
+  Segment Sections...
+    00     
+    01     .interp
+    02     .interp .note.ABI-tag .note.gnu.build-id .gnu.hash .dynsym .dynstr .gnu.version .gnu.version_r .rela.dyn .rela.plt .init .plt .plt.got .text .fini .rodata .eh_frame_hdr .eh_frame 
+    03     .init_array .fini_array .jcr .dynamic .got .got.plt .data .bss 
+    04     .dynamic 
+    05     .note.ABI-tag .note.gnu.build-id 
+    06     .eh_frame_hdr 
+    07     
+    08     .init_array .fini_array .jcr .dynamic .got 
+```
+
+在示例输出种，`LOAD`段出现了两次：
+
+```text
+  LOAD           0x0000000000000000 0x0000000000400000   0x0000000000400000
+                 0x000000000000070c 0x000000000000070c  R E      200000
+  LOAD           0x0000000000000e10 0x0000000000600e10   0x0000000000600e10
+                 0x0000000000000228 0x0000000000000230  RW       200000
+```
+
+为什么会这样？请注意权限：
+
+* 上边的`LOAD`有读取和执行的权限。这是一个文本段。文本段包含只读指令和只读数据。
+* 下边的`LOAD`有读和写的权限。这是一个数据段。这意味着这个段可以被读写，但出于安全考虑，不允许作为可执行代码使用。
+
+于是，`LOAD`包含下面的节：
+
+```text
+    02     .interp .note.ABI-tag .note.gnu.build-id .gnu.hash .dynsym .dynstr .gnu.version .gnu.version_r .rela.dyn .rela.plt .init .plt .plt.got .text .fini .rodata .eh_frame_hdr .eh_frame 
+    03     .init_array .fini_array .jcr .dynamic .got .got.plt .data .bss 
+```
 
+第一个数字是程序头表中某个程序头的索引，其它的文字是段内所有节的列表。不幸的是，`readelf`并不输出索引，所以用户需要手动跟踪段的索引。第一个段从索引`0`开始，第二个段从索引`1`开始，以此类推。`LOAD`是位于索引2和索引3的段。从这两个段的列表中可以看出，大多数节都是可加载的，并且在运行时是可用的。
 
+---
 
-Similar to a section, a program header also has types:
-
-  PHDR specifies the location and size of the program header 
-  table itself, both in the file and in the memory image of the 
-  program
-
-  INTERP specifies the location and size of a null-terminated 
-  path name to invoke as an interpreter for linking runtime 
-  libraries.
-
-  LOAD specifies a loadable segment. That is, this segment is 
-  loaded into main memory.
-
-  DYNAMIC specifies dynamic linking information.
-
-  NOTE specifies the location and size of auxiliary information.
-
-  TLS specifies the Thread-Local Storage template, which is 
-  formed from the combination of all sections with the flag TLS.
-
-  GNU_STACK indicates whether the program's stack should be made 
-  executable or not. Linux kernel uses this type.
-
-A segment also has permission, which is a combination of these 3 
-values:[float MarginTable:
-[MarginTable 3:
-Segment Permission
-]
-
-
-+-------------+-------------+
-| Permission  | Description |
-+-------------+-------------+
-+-------------+-------------+
-| R           | Readable    |
-+-------------+-------------+
-| W           | Writable    |
-+-------------+-------------+
-| E           | Executable  |
-+-------------+-------------+
-
-]
-
-• Read (R)
-
-• Write (W)
-
-• Execute (E)
-
-
--------------------------------------------
-
-
-The command to get the program header table:
-
-  
-
-  $ readelf -l hello
-
-  
-
-  Output:
-
-  
-
-  Elf file type is EXEC (Executable file)
-
-  Entry point 0x400430
-
-  There are 9 program headers, starting at offset 64
-
-  
-
-  Program Headers:
-
-    Type           Offset             VirtAddr           PhysAddr
-
-                   FileSiz            MemSiz              Flags  
-  Align
-
-    PHDR           0x0000000000000040 0x0000000000400040 
-  0x0000000000400040
-
-                   0x00000000000001f8 0x00000000000001f8  R E    
-  8
-
-    INTERP         0x0000000000000238 0x0000000000400238 
-  0x0000000000400238
-
-                   0x000000000000001c 0x000000000000001c  R      
-  1
-
-        [Requesting program interpreter: 
-  /lib64/ld-linux-x86-64.so.2]
-
-    LOAD           0x0000000000000000 0x0000000000400000 
-  0x0000000000400000
-
-                   0x000000000000070c 0x000000000000070c  R E    
-  200000
-
-    LOAD           0x0000000000000e10 0x0000000000600e10 
-  0x0000000000600e10
-
-                   0x0000000000000228 0x0000000000000230  RW     
-  200000
-
-    DYNAMIC        0x0000000000000e28 0x0000000000600e28 
-  0x0000000000600e28
-
-                   0x00000000000001d0 0x00000000000001d0  RW     
-  8
-
-    NOTE           0x0000000000000254 0x0000000000400254 
-  0x0000000000400254
-
-                   0x0000000000000044 0x0000000000000044  R      
-  4
-
-    GNU_EH_FRAME   0x00000000000005e4 0x00000000004005e4 
-  0x00000000004005e4
-
-                   0x0000000000000034 0x0000000000000034  R      
-  4
-
-    GNU_STACK      0x0000000000000000 0x0000000000000000 
-  0x0000000000000000
-
-                   0x0000000000000000 0x0000000000000000  RW     
-  10
-
-    GNU_RELRO      0x0000000000000e10 0x0000000000600e10 
-  0x0000000000600e10
-
-                   0x00000000000001f0 0x00000000000001f0  R      
-  1
-
-  
-
-   Section to Segment mapping:
-
-    Segment Sections...
-
-     00     
-
-     01     .interp
-
-     02     .interp .note.ABI-tag .note.gnu.build-id .gnu.hash 
-  .dynsym .dynstr 
-
-  .gnu.version .gnu.version_r .rela.dyn .rela.plt .init .plt 
-  .plt.got .text .fini
-
-  .rodata .eh_frame_hdr .eh_frame 
-
-     03     .init_array .fini_array .jcr .dynamic .got .got.plt 
-  .data .bss 
-
-     04     .dynamic 
-
-     05     .note.ABI-tag .note.gnu.build-id 
-
-     06     .eh_frame_hdr 
-
-     07     
-
-     08     .init_array .fini_array .jcr .dynamic .got 
-
-  
-
-  In the sample output, LOAD segment appears twice:
-
-  
-
-  LOAD           0x0000000000000000 0x0000000000400000 
-  0x0000000000400000
-
-                 0x000000000000070c 0x000000000000070c  R E    
-  200000
-
-  LOAD           0x0000000000000e10 0x0000000000600e10 
-  0x0000000000600e10
-
-                 0x0000000000000228 0x0000000000000230  RW     
-  200000
-
-  
-
-  Why? Notice the permission: 
-
-  • the upper LOAD has Read and Execute permission. This is a 
-    text segment. A text segment contains read-only instructions 
-    and read-only data.
-
-  • the lower LOAD has Read and Write permission. This is a data 
-    segment. It means that this segment can be read and written 
-    to, but is not allowed to be used as executable code, for 
-    security reason.
-
-  Then, LOAD contains the following sections:
-
-  
-
-     02     .interp .note.ABI-tag .note.gnu.build-id .gnu.hash 
-  .dynsym .dynstr 
-
-  .gnu.version .gnu.version_r .rela.dyn .rela.plt .init .plt 
-  .plt.got .text .fini 
-
-  .rodata .eh_frame_hdr .eh_frame 
-
-     03     .init_array .fini_array .jcr .dynamic .got .got.plt 
-  .data .bss 
-
-  
-
-  The first number is the index of a program header in program 
-  header table, and the remaining text is the list of all 
-  sections within a segment. Unfortunately, readelf does not 
-  print the index, so a user needs to keep track manually which 
-  segment is of which index. First segment starts at index 0, 
-  second at index 1 and so on. LOAD are segments at index 2 and 
-  1. As can be seen from the two lists of sections, most sections 
-  are loadable and is available at runtime.
-
-
--------------------------------------------
-
+158
 
   Segments vs sections
 
