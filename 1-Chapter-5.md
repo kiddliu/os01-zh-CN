@@ -1173,452 +1173,202 @@ Section to Segment mapping:
 
 ---
 
-158
+## 5.6 段与节
 
-  Segments vs sections
+前面讲过，操作系统加载的是程序段，而不是节。于是问题来了：为什么操作系统不使用节呢？毕竟，节也包含了与程序段类似的信息，如类型、要加载的虚拟内存地址、大小、属性、标志以及是否对齐。前面也解释了，段是操作系统的角度，而节是链接器的角度。要了解这背后的原因，我们观察段的结构，就可以很容易地看到：
 
-As mentioned earlier, an operating system loads program segments, 
-not sections. However, a question arises: Why doesn't the 
-operating system use sections instead? After all, a section also 
-contains similar information to a program segment, such as the 
-type, the virtual memory address to be loaded, the size, the 
-attributes, the flags and align. As explained before, a segment 
-is the perspective of an operating system, while a section is the 
-perspective of a linker. To understand why, looking into the 
-structure of a segment, we can easily see:
+* 段是节的集合。意思是节在逻辑上是按照其属性组合在一起的。例如，`LOAD`段中的所有节总是会被操作系统加载；所有节都有着相同的权限，对于可执行的节是`RE`（读取 + 执行）权限，对于数据节是`RW`（读取 + 写入）权限。
+* 通过将各个节组合到一个段中，操作系统可以更容易地一次性批量加载各个节，而不是逐节加载。
+* 由于段是用来加载程序的，而节是用来链接程序的，所以段中的所有节都在段的起始与终结地址以内。
 
-• A segment is a collection of sections. It means that sections 
-  are logically grouped together by their attributes. For 
-  example, all sections in a LOAD segment are always loaded by 
-  the operating system; all sections have the same permission, 
-  either a RE (Read + Execute) for executable sections, or RW 
-  (Read + Write) for data sections.
+为了更清楚地理解最后一点，考虑这样一个例子：链接两个对象文件。假设我们有两个源文件：
 
-• By grouping sections into a segment, it is easier for an 
-  operating system to batch load sections just once by loading 
-  the start and end of a segment, instead of loading section by 
-  section.
-
-• Since a segment is for loading a program and a section is for 
-  linking a program, all the sections in a segment is within its 
-  start and end virtual memory addresses of a segment.
-
-To see the last point clearer, consider an example of linking two 
-object files. Suppose we have two source files:
+```c
+// hello.c
 
 #include <stdio.h>
 
-
-
-int main(int argc, char *argv[])
-
-{
-
+int main(int argc, char *argv[]) {
     printf("Hello World\n");
 
     return 0;
-
 }
+```
 
-and:
+以及：
+
+```c
+// math.c
 
 int add(int a, int b) {
-
     return a + b;
-
 }
+```
 
-Now, compile the two source files as object files:
+现在，把这两个源文件编译为对象文件：
 
-
-
+```bash
 $ gcc -m32 -c math.c 
-
 $ gcc -m32 -c hello.c
+```
 
+然后，我们检查`math.o`的节：
 
-
-Then, we check the sections of math.o:
-
-
-
+```bash
 $ readelf -S math.o
+```
 
-
-
-
-
+```text
 There are 11 section headers, starting at offset 0x1a8:
-
 Section Headers:
-
-  [Nr] Name              Type            Addr     Off    Size   
-ES Flg Lk Inf Al
-
-  [ 0]                   NULL            00000000 000000 000000 
-00      0   0  0
-
-  [ 1] .text             PROGBITS        00000000 000034 00000d 
-00  AX  0   0  1
-
-  [ 2] .data             PROGBITS        00000000 000041 000000 
-00  WA  0   0  1
-
-  [ 3] .bss              NOBITS          00000000 000041 000000 
-00  WA  0   0  1
-
-  [ 4] .comment          PROGBITS        00000000 000041 000035 
-01  MS  0   0  1
-
-  [ 5] .note.GNU-stack   PROGBITS        00000000 000076 000000 
-00      0   0  1
-
-  [ 6] .eh_frame         PROGBITS        00000000 000078 000038 
-00   A  0   0  4
-
-  [ 7] .rel.eh_frame     REL             00000000 00014c 000008 
-08   I  9   6  4
-
-  [ 8] .shstrtab         STRTAB          00000000 000154 000053 
-00      0   0  1
-
-  [ 9] .symtab           SYMTAB          00000000 0000b0 000090 
-10     10   8  4
-
-  [10] .strtab           STRTAB          00000000 000140 00000c 
-00      0   0  1
-
+  [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
+  [ 0]                   NULL            00000000 000000 000000 00      0   0  0
+  [ 1] .text             PROGBITS        00000000 000034 00000d 00  AX  0   0  1
+  [ 2] .data             PROGBITS        00000000 000041 000000 00  WA  0   0  1
+  [ 3] .bss              NOBITS          00000000 000041 000000 00  WA  0   0  1
+  [ 4] .comment          PROGBITS        00000000 000041 000035 01  MS  0   0  1
+  [ 5] .note.GNU-stack   PROGBITS        00000000 000076 000000 00      0   0  1
+  [ 6] .eh_frame         PROGBITS        00000000 000078 000038 00   A  0   0  4
+  [ 7] .rel.eh_frame     REL             00000000 00014c 000008 08   I  9   6  4
+  [ 8] .shstrtab         STRTAB          00000000 000154 000053 00      0   0  1
+  [ 9] .symtab           SYMTAB          00000000 0000b0 000090 10     10   8  4
+  [10] .strtab           STRTAB          00000000 000140 00000c 00      0   0  1
 Key to Flags:
-
   W (write), A (alloc), X (execute), M (merge), S (strings)
+  I (info), L (link order), G (group), T (TLS), E (exclude), x (unknown)
+  O (extra OS processing required) o (OS specific), p (processor specific)
+```
 
-  I (info), L (link order), G (group), T (TLS), E (exclude), x 
-(unknown)
+如输出中所示，所有节的虚拟内存地址都被设为`0`。 在这个阶段，每个对象文件只是包含代码和数据的二进制块。它存在的目的是为了作为最终产品的材料容器，也就是可执行二进制文件。因此，`hello.o`中的虚拟地址都是零。
 
-  O (extra OS processing required) o (OS specific), p (processor 
-specific)
+在这个阶段是没有段的存在的。
 
-
-
-As shown in the output, all the section virtual memory addresses 
-of every section are set to 0. At this stage, each object file is 
-simply a block of binary that contains code and data. Its 
-existence is to serve as a material container for the final 
-product, which is the executable binary. As such, the virtual 
-addresses in hello.o are all zeroes.
-
-No segment exists at this stage:
-
-
-
+```bash
 $ readelf -l math.o
-
 There are no program headers in this file.
+```
 
+同样的情况也发生在另外一个对象文件上：
 
-
-The same happens to other object file:
-
-
-
+```text
 There are 13 section headers, starting at offset 0x224:
-
 Section Headers:
-
-  [Nr] Name              Type            Addr     Off    Size   
-ES Flg Lk Inf Al
-
-  [ 0]                   NULL            00000000 000000 000000 
-00      0   0  0
-
-  [ 1] .text             PROGBITS        00000000 000034 00002e 
-00  AX  0   0  1
-
-  [ 2] .rel.text         REL             00000000 0001ac 000010 
-08   I 11   1  4
-
-  [ 3] .data             PROGBITS        00000000 000062 000000 
-00  WA  0   0  1
-
-  [ 4] .bss              NOBITS          00000000 000062 000000 
-00  WA  0   0  1
-
-  [ 5] .rodata           PROGBITS        00000000 000062 00000c 
-00   A  0   0  1
-
-  [ 6] .comment          PROGBITS        00000000 00006e 000035 
-01  MS  0   0  1
-
-  [ 7] .note.GNU-stack   PROGBITS        00000000 0000a3 000000 
-00      0   0  1
-
-  [ 8] .eh_frame         PROGBITS        00000000 0000a4 000044 
-00   A  0   0  4
-
-  [ 9] .rel.eh_frame     REL             00000000 0001bc 000008 
-08   I 11   8  4
-
-  [10] .shstrtab         STRTAB          00000000 0001c4 00005f 
-00      0   0  1
-
-  [11] .symtab           SYMTAB          00000000 0000e8 0000b0 
-10     12   9  4
-
-  [12] .strtab           STRTAB          00000000 000198 000013 
-00      0   0  1
-
+  [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
+  [ 0]                   NULL            00000000 000000 000000 00      0   0  0
+  [ 1] .text             PROGBITS        00000000 000034 00002e 00  AX  0   0  1
+  [ 2] .rel.text         REL             00000000 0001ac 000010 08   I 11   1  4
+  [ 3] .data             PROGBITS        00000000 000062 000000 00  WA  0   0  1
+  [ 4] .bss              NOBITS          00000000 000062 000000 00  WA  0   0  1
+  [ 5] .rodata           PROGBITS        00000000 000062 00000c 00   A  0   0  1
+  [ 6] .comment          PROGBITS        00000000 00006e 000035 01  MS  0   0  1
+  [ 7] .note.GNU-stack   PROGBITS        00000000 0000a3 000000 00      0   0  1
+  [ 8] .eh_frame         PROGBITS        00000000 0000a4 000044 00   A  0   0  4
+  [ 9] .rel.eh_frame     REL             00000000 0001bc 000008 08   I 11   8  4
+  [10] .shstrtab         STRTAB          00000000 0001c4 00005f 00      0   0  1
+  [11] .symtab           SYMTAB          00000000 0000e8 0000b0 10     12   9  4
+  [12] .strtab           STRTAB          00000000 000198 000013 00      0   0  1
 Key to Flags:
-
   W (write), A (alloc), X (execute), M (merge), S (strings)
+  I (info), L (link order), G (group), T (TLS), E (exclude), x (unknown)
+  O (extra OS processing required) o (OS specific), p (processor specific)
+```
 
-  I (info), L (link order), G (group), T (TLS), E (exclude), x 
-(unknown)
-
-  O (extra OS processing required) o (OS specific), p (processor 
-specific)
-
-
-
-
-
+```bash
 $ readelf -l hello.o
-
 There are no program headers in this file.
+```
 
+只有当对象文件被组合成最终的可执行二进制文件时，每个节才被完全实现：
 
-
-Only when object files are combined into a final executable 
-binary, sections are fully realized:
-
-
-
+```bash
 $ gcc -m32 math.o hello.o -o hello
-
 $ readelf -S hello.
+```
 
-
-
-
-
+```text
 There are 31 section headers, starting at offset 0x1804:
-
 Section Headers:
-
-  [Nr] Name              Type            Addr     Off    Size   
-ES Flg Lk Inf Al
-
-  [ 0]                   NULL            00000000 000000 000000 
-00      0   0  0
-
-  [ 1] .interp           PROGBITS        08048154 000154 000013 
-00   A  0   0  1
-
-  [ 2] .note.ABI-tag     NOTE            08048168 000168 000020 
-00   A  0   0  4
-
-  [ 3] .note.gnu.build-i NOTE            08048188 000188 000024 
-00   A  0   0  4
-
-  [ 4] .gnu.hash         GNU_HASH        080481ac 0001ac 000020 
-04   A  5   0  4
-
-  [ 5] .dynsym           DYNSYM          080481cc 0001cc 000050 
-10   A  6   1  4
-
-  [ 6] .dynstr           STRTAB          0804821c 00021c 00004a 
-00   A  0   0  1
-
-  [ 7] .gnu.version      VERSYM          08048266 000266 00000a 
-02   A  5   0  2
-
-  [ 8] .gnu.version_r    VERNEED         08048270 000270 000020 
-00   A  6   1  4
-
-  [ 9] .rel.dyn          REL             08048290 000290 000008 
-08   A  5   0  4
-
-  [10] .rel.plt          REL             08048298 000298 000010 
-08  AI  5  24  4
-
-  [11] .init             PROGBITS        080482a8 0002a8 000023 
-00  AX  0   0  4
-
-  [12] .plt              PROGBITS        080482d0 0002d0 000030 
-04  AX  0   0 16
-
-  [13] .plt.got          PROGBITS        08048300 000300 000008 
-00  AX  0   0  8
-
-  [14] .text             PROGBITS        08048310 000310 0001a2 
-00  AX  0   0 16
-
-  [15] .fini             PROGBITS        080484b4 0004b4 000014 
-00  AX  0   0  4
-
-  [16] .rodata           PROGBITS        080484c8 0004c8 000014 
-00   A  0   0  4
-
-  [17] .eh_frame_hdr     PROGBITS        080484dc 0004dc 000034 
-00   A  0   0  4
-
-  [18] .eh_frame         PROGBITS        08048510 000510 0000ec 
-00   A  0   0  4
-
-  [19] .init_array       INIT_ARRAY      08049f08 000f08 000004 
-00  WA  0   0  4
-
-  [20] .fini_array       FINI_ARRAY      08049f0c 000f0c 000004 
-00  WA  0   0  4
-
-  [21] .jcr              PROGBITS        08049f10 000f10 000004 
-00  WA  0   0  4
-
-  [22] .dynamic          DYNAMIC         08049f14 000f14 0000e8 
-08  WA  6   0  4
-
-  [23] .got              PROGBITS        08049ffc 000ffc 000004 
-04  WA  0   0  4
-
-  [24] .got.plt          PROGBITS        0804a000 001000 000014 
-04  WA  0   0  4
-
-  [25] .data             PROGBITS        0804a014 001014 000008 
-00  WA  0   0  4
-
-  [26] .bss              NOBITS          0804a01c 00101c 000004 
-00  WA  0   0  1
-
-  [27] .comment          PROGBITS        00000000 00101c 000034 
-01  MS  0   0  1
-
-  [28] .shstrtab         STRTAB          00000000 0016f8 00010a 
-00      0   0  1
-
-  [29] .symtab           SYMTAB          00000000 001050 000470 
-10     30  48  4
-
-  [30] .strtab           STRTAB          00000000 0014c0 000238 
-00      0   0  1
-
+  [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
+  [ 0]                   NULL            00000000 000000 000000 00      0   0  0
+  [ 1] .interp           PROGBITS        08048154 000154 000013 00   A  0   0  1
+  [ 2] .note.ABI-tag     NOTE            08048168 000168 000020 00   A  0   0  4
+  [ 3] .note.gnu.build-i NOTE            08048188 000188 000024 00   A  0   0  4
+  [ 4] .gnu.hash         GNU_HASH        080481ac 0001ac 000020 04   A  5   0  4
+  [ 5] .dynsym           DYNSYM          080481cc 0001cc 000050 10   A  6   1  4
+  [ 6] .dynstr           STRTAB          0804821c 00021c 00004a 00   A  0   0  1
+  [ 7] .gnu.version      VERSYM          08048266 000266 00000a 02   A  5   0  2
+  [ 8] .gnu.version_r    VERNEED         08048270 000270 000020 00   A  6   1  4
+  [ 9] .rel.dyn          REL             08048290 000290 000008 08   A  5   0  4
+  [10] .rel.plt          REL             08048298 000298 000010 08  AI  5  24  4
+  [11] .init             PROGBITS        080482a8 0002a8 000023 00  AX  0   0  4
+  [12] .plt              PROGBITS        080482d0 0002d0 000030 04  AX  0   0 16
+  [13] .plt.got          PROGBITS        08048300 000300 000008 00  AX  0   0  8
+  [14] .text             PROGBITS        08048310 000310 0001a2 00  AX  0   0 16
+  [15] .fini             PROGBITS        080484b4 0004b4 000014 00  AX  0   0  4
+  [16] .rodata           PROGBITS        080484c8 0004c8 000014 00   A  0   0  4
+  [17] .eh_frame_hdr     PROGBITS        080484dc 0004dc 000034 00   A  0   0  4
+  [18] .eh_frame         PROGBITS        08048510 000510 0000ec 00   A  0   0  4
+  [19] .init_array       INIT_ARRAY      08049f08 000f08 000004 00  WA  0   0  4
+  [20] .fini_array       FINI_ARRAY      08049f0c 000f0c 000004 00  WA  0   0  4
+  [21] .jcr              PROGBITS        08049f10 000f10 000004 00  WA  0   0  4
+  [22] .dynamic          DYNAMIC         08049f14 000f14 0000e8 08  WA  6   0  4
+  [23] .got              PROGBITS        08049ffc 000ffc 000004 04  WA  0   0  4
+  [24] .got.plt          PROGBITS        0804a000 001000 000014 04  WA  0   0  4
+  [25] .data             PROGBITS        0804a014 001014 000008 00  WA  0   0  4
+  [26] .bss              NOBITS          0804a01c 00101c 000004 00  WA  0   0  1
+  [27] .comment          PROGBITS        00000000 00101c 000034 01  MS  0   0  1
+  [28] .shstrtab         STRTAB          00000000 0016f8 00010a 00      0   0  1
+  [29] .symtab           SYMTAB          00000000 001050 000470 10     30  48  4
+  [30] .strtab           STRTAB          00000000 0014c0 000238 00      0   0  1
 Key to Flags:
-
   W (write), A (alloc), X (execute), M (merge), S (strings)
+  I (info), L (link order), G (group), T (TLS), E (exclude), x (unknown)
+  O (extra OS processing required) o (OS specific), p (processor specific)
+```
 
-  I (info), L (link order), G (group), T (TLS), E (exclude), x 
-(unknown)
+每个可加载的节都被分配了地址，用绿色标出。这背后的原因在于现实中，`gcc`不会自己组合对象，而是调用链接器`ld`。链接器`ld`使用它可以在系统中找到的默认脚本来构建可执行二进制文件。在默认脚本中，段被分配的起始地址是`0x8048000`，而各个节都属于它。于是：
 
-  O (extra OS processing required) o (OS specific), p (processor 
-specific)
+* 首节地址 = 段起始地址 + 首节偏移量 = 0x8048000 + 0x154 = 0x08048154
+* 次节地址 = 段起始地址 + 次节偏移量 = 0x8048000 + 0x168 = 0x08048168
+* 以此类推，直至尾节
 
+事实上，段的结束地址也是尾节的结束地址。可以通过列出所有的段来看到这一点：
 
-
-Every loadable section is assigned an address, highlighted in 
-green. The reason each section got its own address is that in 
-reality, gcc does not combine an object by itself, but invokes 
-the linker ld. The linker ld uses the default script that it can 
-find in the system to build the executable binary. In the default 
-script, a segment is assigned a starting address 0x8048000 and 
-sections belong to it. Then:
-
-• \mathtt{1^{st}\,section\,address=starting\,segment\,address+section\,offset=0x8048000+0x154=0x08048154}
-
-
-• \mathtt{2^{nd}\,section\,address=starting\,segment\,address+section\,offset=0x8048000+0x168=0x08048168}
-
-
-• .... and so on until the last loadable section...
-
-Indeed, the end address of a segment is also the end address of 
-the final section. We can see this by listing all the segments:
-
-
-
+```bash
 $ readelf -l hello
+```
 
+然后检查，例如，`LOAD`段开始于`0x08048000`结束于`0x08048000 + 0x005fc = 0x080485fc`：
 
-
-And check, for example, LOAD segment which starts at 0x08048000 
-and end at \mathtt{0x08048000+0x005fc=0x080485fc}
-:
-
-
-
+```text
 Elf file type is EXEC (Executable file)
-
 Entry point 0x8048310
-
 There are 9 program headers, starting at offset 52
-
 Program Headers:
-
-  Type           Offset   VirtAddr   PhysAddr   FileSiz MemSiz  
-Flg Align
-
-  PHDR           0x000034 0x08048034 0x08048034 0x00120 0x00120 R 
-E 0x4
-
-  INTERP         0x000154 0x08048154 0x08048154 0x00013 0x00013 R 
-  0x1
-
+  Type           Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align
+  PHDR           0x000034 0x08048034 0x08048034 0x00120 0x00120 R E 0x4
+  INTERP         0x000154 0x08048154 0x08048154 0x00013 0x00013 R   0x1
       [Requesting program interpreter: /lib/ld-linux.so.2]
-
-  LOAD           0x000000 0x08048000 0x08048000 0x005fc 0x005fc R 
-E 0x1000
-
-  LOAD           0x000f08 0x08049f08 0x08049f08 0x00114 0x00118 
-RW  0x1000
-
-  DYNAMIC        0x000f14 0x08049f14 0x08049f14 0x000e8 0x000e8 
-RW  0x4
-
-  NOTE           0x000168 0x08048168 0x08048168 0x00044 0x00044 R 
-  0x4
-
-  GNU_EH_FRAME   0x0004dc 0x080484dc 0x080484dc 0x00034 0x00034 R 
-  0x4
-
-  GNU_STACK      0x000000 0x00000000 0x00000000 0x00000 0x00000 
-RW  0x10
-
-  GNU_RELRO      0x000f08 0x08049f08 0x08049f08 0x000f8 0x000f8 R 
-  0x1
-
+  LOAD           0x000000 0x08048000 0x08048000 0x005fc 0x005fc R E 0x1000
+  LOAD           0x000f08 0x08049f08 0x08049f08 0x00114 0x00118 RW  0x1000
+  DYNAMIC        0x000f14 0x08049f14 0x08049f14 0x000e8 0x000e8 RW  0x4
+  NOTE           0x000168 0x08048168 0x08048168 0x00044 0x00044 R   0x4
+  GNU_EH_FRAME   0x0004dc 0x080484dc 0x080484dc 0x00034 0x00034 R   0x4
+  GNU_STACK      0x000000 0x00000000 0x00000000 0x00000 0x00000 RW  0x10
+  GNU_RELRO      0x000f08 0x08049f08 0x08049f08 0x000f8 0x000f8 R   0x1
  Section to Segment mapping:
-
   Segment Sections...
-
    00     
-
    01     .interp 
-
-   02     .interp .note.ABI-tag .note.gnu.build-id .gnu.hash 
-.dynsym .dynstr 
-
-.gnu.version .gnu.version_r .rel.dyn .rel.plt .init .plt .plt.got 
-.text .fini 
-
-.rodata .eh_frame_hdr .eh_frame 
-
-   03     .init_array .fini_array .jcr .dynamic .got .got.plt 
-.data .bss 
-
+   02     .interp .note.ABI-tag .note.gnu.build-id .gnu.hash .dynsym .dynstr .gnu.version .gnu.version_r .rel.dyn .rel.plt .init .plt .plt.got .text .fini .rodata .eh_frame_hdr .eh_frame 
+   03     .init_array .fini_array .jcr .dynamic .got .got.plt .data .bss 
    04     .dynamic 
-
    05     .note.ABI-tag .note.gnu.build-id 
-
    06     .eh_frame_hdr 
-
    07     
-
    08     .init_array .fini_array .jcr .dynamic .got 
+```
 
+首个`LOAD`段的最后一节是`.eh_frame`。这个节从`0x08048510`开始，偏移量为`0x510`，大小为`0xec`。`.eh_frame`的结束地址应该是`0x08048510 + 0x5100xec = 0x080485fc`，与首个`LOAD`段的结束地址完全一致。
 
-
-The last section in the first LOAD segment is .eh_frame. The 
-section starts at 0x08048510, with the offset 0x510 and its size 
-is 0xec. The end address of .eh_frame should be: \mathtt{0x08048510+0x510+0xec=0x080485fc}
-
-, exactly the same as the end address of the first LOAD segment.
-
-Chapter [chap:Linking-and-loading] will explore this whole 
-process in detail.
+第8章会详细探讨这整个过程。
