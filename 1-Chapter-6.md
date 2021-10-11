@@ -36,137 +36,88 @@ $ gcc -m32 -g hello.c -o hello
 $ gdb hello
 ```
 
+## 6.2 对一个程序进行静态检查
 
-  Static inspection of a program
+在检查一个运行中的程序之前，`gdb`首先会加载它。加载到内存之后（即使不运行），已经可以获取到很多有用的信息以供检查。本节中的命令可以在程序运行前使用。然而，它们也可以在程序运行时使用，并且可以显示更多的信息。
 
-Before inspecting a program at runtime, gdb loads it first. Upon 
-loading into memory (but without running), a lot of useful 
-information can be retrieve for inspection. The commands in this 
-section can be used before the program runs. However, they are 
-also usable when the program runs and can display even more 
-information.
+### 6.2.1 命令：info target/info file/info files
 
-  Command: info target/info file/info files
+下面的命令可以打印出正在调试的目标的信息。目标就是正在调试的程序。
 
-This command prints the information of the target being debugged. 
-A target is the debugging program.
+示例6.2.1 `hello`程序的命令输出，详尽地展示了一个本地的目标。
 
-The output of the command from hello program, a local target in 
-detail:
+```bash
+(gdb) info target
+```
 
-  
+```text
+Symbols from "/tmp/hello".
+Local exec file:
+  `/tmp/hello', file type elf32-i386.
+  Entry point: 0x8048310
+  0x08048154 - 0x08048167 is .interp
+  0x08048168 - 0x08048188 is .note.ABI-tag
+  0x08048188 - 0x080481ac is .note.gnu.build-id
+  0x080481ac - 0x080481cc is .gnu.hash
+  0x080481cc - 0x0804821c is .dynsym
+  0x0804821c - 0x08048266 is .dynstr
+  0x08048266 - 0x08048270 is .gnu.version
+  0x08048270 - 0x08048290 is .gnu.version_r
+  0x08048290 - 0x08048298 is .rel.dyn
+  0x08048298 - 0x080482a8 is .rel.plt
+  0x080482a8 - 0x080482cb is .init
+  0x080482d0 - 0x08048300 is .plt
+  0x08048300 - 0x08048308 is .plt.got
+  0x08048310 - 0x080484a2 is .text
+  0x080484a4 - 0x080484b8 is .fini
+  0x080484b8 - 0x080484cd is .rodata
+  0x080484d0 - 0x080484fc is .eh_frame_hdr
+  0x080484fc - 0x080485c8 is .eh_frame
+  0x08049f08 - 0x08049f0c is .init_array
+  0x08049f0c - 0x08049f10 is .fini_array
+  0x08049f10 - 0x08049f14 is .jcr
+  0x08049f14 - 0x08049ffc is .dynamic
+  0x08049ffc - 0x0804a000 is .got
+  0x0804a000 - 0x0804a014 is .got.plt
+  0x0804a014 - 0x0804a01c is .data
+  0x0804a01c - 0x0804a020 is .bss
+```
 
-  (gdb) info target
+输出显示了各种报告：
 
-  
+* 符号文件的路径。符号文件是包含着调试信息的文件。通常，它与二进制文件是同一个文件，但是更多情况是把可执行的二进制文件以及它的调试信息分成两个文件，尤其是在远程调试的时候。示例中，它是这一行：
 
-  
+```text
+Symbols from "/tmp/hello".
+```
 
-  Symbols from "/tmp/hello".
+* 调试程序的路径以及它的文件类型。示例中，它是这一行：
 
-  Local exec file:
+```text
+Local exec file:
+  `/tmp/hello', file type elf32-i386.
+```
 
-  	`/tmp/hello', file type elf32-i386.
+* 调试程序的入口。也就是程序运行的第一段代码。示例中，它是这一行：
 
-  	Entry point: 0x8048310
+```text
+Entry point: 0x8048310
+```
 
-  	0x08048154 - 0x08048167 is .interp
+* 带有起始和结束地址的节表。示例中，它是报告的剩余部分。  
 
-  	0x08048168 - 0x08048188 is .note.ABI-tag
+示例6.2.1 如果调试的程序运行在另外一台设备上，它就是一个远程目标，`gdb`只会打印一些简要的信息：
 
-  	0x08048188 - 0x080481ac is .note.gnu.build-id
+```bash
+(gdb) info target
+```
 
-  	0x080481ac - 0x080481cc is .gnu.hash
+```text
+Remote serial target in gdb-specific protocol:
+Debugging a target over a serial line.
+```
 
-  	0x080481cc - 0x0804821c is .dynsym
-
-  	0x0804821c - 0x08048266 is .dynstr
-
-  	0x08048266 - 0x08048270 is .gnu.version
-
-  	0x08048270 - 0x08048290 is .gnu.version_r
-
-  	0x08048290 - 0x08048298 is .rel.dyn
-
-  	0x08048298 - 0x080482a8 is .rel.plt
-
-  	0x080482a8 - 0x080482cb is .init
-
-  	0x080482d0 - 0x08048300 is .plt
-
-  	0x08048300 - 0x08048308 is .plt.got
-
-  	0x08048310 - 0x080484a2 is .text
-
-  	0x080484a4 - 0x080484b8 is .fini
-
-  	0x080484b8 - 0x080484cd is .rodata
-
-  	0x080484d0 - 0x080484fc is .eh_frame_hdr
-
-  	0x080484fc - 0x080485c8 is .eh_frame
-
-  	0x08049f08 - 0x08049f0c is .init_array
-
-  	0x08049f0c - 0x08049f10 is .fini_array
-
-  	0x08049f10 - 0x08049f14 is .jcr
-
-  	0x08049f14 - 0x08049ffc is .dynamic
-
-  	0x08049ffc - 0x0804a000 is .got
-
-  	0x0804a000 - 0x0804a014 is .got.plt
-
-  	0x0804a014 - 0x0804a01c is .data
-
-  	0x0804a01c - 0x0804a020 is .bss
-
-  
-
-  The output displayed reports:
-
-  • Path of a symbol file. A symbol file is the file that 
-    contains the debugging information. Usually, this is the same 
-    file as the binary, but it is common to separate between an 
-    executable binary and its debugging information into 2 files, 
-    especially for remote debugging. In the example, it is this 
-    line:
-
-    Symbols from "/tmp/hello".
-
-  • The path of the debugging program and its file type. In the 
-    example, it is this line:
-
-    Local exec file:
-
-    	`/tmp/hello', file type elf32-i386.
-
-  • The entry point to the debugging program. That is, the very 
-    first code the program runs. In the example, it is this line:
-
-    Entry point: 0x8048310
-
-  • A list of sections with its starting and ending addresses. In 
-    the example, it is the remaining output.
-
-
-
-If the debugging program runs in a different machine, it is a 
-remote target and gdb only prints a brief information:
-
-  
-
-  (gdb) info target
-
-  
-
-  
-
-  Remote serial target in gdb-specific protocol:
-
-  Debugging a target over a serial line.
-
+168
   
 
 
