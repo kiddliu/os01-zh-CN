@@ -40,7 +40,7 @@ $ gdb hello
 
 在检查一个运行中的程序之前，`gdb`首先会加载它。加载到内存之后（即使不运行），已经可以获取到很多有用的信息以供检查。本节中的命令可以在程序运行前使用。然而，它们也可以在程序运行时使用，并且可以显示更多的信息。
 
-### 6.2.1 命令：info target/info file/info files
+### 6.2.1 命令：`info target`/`info file`/`info files`
 
 下面的命令可以打印出正在调试的目标的信息。目标就是正在调试的程序。
 
@@ -117,168 +117,95 @@ Remote serial target in gdb-specific protocol:
 Debugging a target over a serial line.
 ```
 
-168
-  
+### 6.2.2 命令：`maint info sections`
 
+这个命令与`info target`类似，但给出了关于程序各节的额外信息，特别是每个节的文件偏移量以及各个标志。
 
+下面是针对`hello`程序运行时的输出。
 
-  Command: maint info sections
+```bash
+(gdb) maint info sections
+```
 
-This command is similar to info target but give extra information 
-about program sections, specifically the file offset and the 
-flags of each section.
+```text
+Exec file:
+    `/tmp/hello', file type elf64-x86-64.
+  [0]     0x00400238->0x00400254 at 0x00000238: .interp ALLOC LOAD READONLY DATA HAS_CONTENTS
+  [1]     0x00400254->0x00400274 at 0x00000254: .note.ABI-tag ALLOC LOAD READONLY DATA HAS_CONTENTS
+  [2]     0x00400274->0x00400298 at 0x00000274: .note.gnu.build-id ALLOC LOAD READONLY DATA HAS_CONTENTS
+  [3]     0x00400298->0x004002b4 at 0x00000298: .gnu.hash ALLOC LOAD READONLY DATA HAS_CONTENTS
+  [4]     0x004002b8->0x00400318 at 0x000002b8: .dynsym ALLOC LOAD READONLY DATA HAS_CONTENTS
+  [5]     0x00400318->0x00400355 at 0x00000318: .dynstr ALLOC LOAD READONLY DATA HAS_CONTENTS
+  [6]     0x00400356->0x0040035e at 0x00000356: .gnu.version ALLOC LOAD READONLY DATA HAS_CONTENTS
+  [7]     0x00400360->0x00400380 at 0x00000360: .gnu.version_r ALLOC LOAD READONLY DATA HAS_CONTENTS
+....remaining output omitted....
+```
 
-Here is the output when running against hello program:
+这个输出与`info target`的输出类似，但是有更多的细节。在节的名字旁边是节的标志，它们是节的属性。在这里，我们可以看到带有`LOAD`标志的部分来自LOAD段。这个命令可以结合节的标志，对输出进行过滤：
 
-  
+*ALLOBJ* 显示所有加载的对象文件的节，包括共享库。共享库只有在程序已经运行时才会显示出来。
 
-  (gdb) maint info sections
+*section names* 只显示命名了的节。
 
-  
+示例6.2.4 命令：
 
-  
+```bash
+(gdb) maint info sections .text .data .bss
+```
 
-  Exec file:
+只显示`.text`、`.data`和`.bss`节：
 
-      `/tmp/hello', file type elf64-x86-64.
+```text
+Exec file:
+    `/tmp/hello', file type elf64-x86-64.
+  [13]     0x00400430->0x004005c2 at 0x00000430: .text ALLOC LOAD READONLY CODE HAS_CONTENTS
+  [24]     0x00601028->0x00601038 at 0x00001028: .data ALLOC LOAD DATA HAS_CONTENTS
+  [25]     0x00601038->0x00601040 at 0x00001038: .bss ALLOC
+```
 
-   [0]     0x00400238->0x00400254 at 0x00000238: .interp ALLOC 
-  LOAD READONLY DATA HAS_CONTENTS
+*section-flags* 只显示具有指定标志的节。注意，尽管这些标志是基于节属性定义的，他们都是`gdb`特有的。目前，`gdb`理解下列标志：
 
-   [1]     0x00400254->0x00400274 at 0x00000254: .note.ABI-tag 
-  ALLOC LOAD READONLY DATA HAS_CONTENTS
+&nbsp;&nbsp;&nbsp;&nbsp;*ALLOC* 节会在程序加载时在进程中分配获得空间。除了包含调试信息的节之外，剩下所有的节都有这个标志。
 
-   [2]     0x00400274->0x00400298 at 0x00000274: 
-  .note.gnu.build-id ALLOC LOAD READONLY DATA HAS_CONTENTS
+&nbsp;&nbsp;&nbsp;&nbsp;*LOAD* 节会从文件中加载到子进程内存中。预初始化的代码和数据都有设置这个标志，而`.bss`节没有。
 
-   [3]     0x00400298->0x004002b4 at 0x00000298: .gnu.hash ALLOC 
-  LOAD READONLY DATA HAS_CONTENTS
+&nbsp;&nbsp;&nbsp;&nbsp;*RELOC* 节在加载之前需要重新定位。
 
-   [4]     0x004002b8->0x00400318 at 0x000002b8: .dynsym ALLOC 
-  LOAD READONLY DATA HAS_CONTENTS
+&nbsp;&nbsp;&nbsp;&nbsp;*READONLY* 节不能被子进程修改。
 
-   [5]     0x00400318->0x00400355 at 0x00000318: .dynstr ALLOC 
-  LOAD READONLY DATA HAS_CONTENTS
+&nbsp;&nbsp;&nbsp;&nbsp;*CODE* 节只包含可执行代码。
 
-   [6]     0x00400356->0x0040035e at 0x00000356: .gnu.version 
-  ALLOC LOAD READONLY DATA HAS_CONTENTS
+&nbsp;&nbsp;&nbsp;&nbsp;*DATA* 节只包含数据（没有可执行代码）。
 
-   [7]     0x00400360->0x00400380 at 0x00000360: .gnu.version_r 
-  ALLOC LOAD READONLY DATA HAS_CONTENTS
+&nbsp;&nbsp;&nbsp;&nbsp;*ROM* 节会驻留在ROM中。
 
-  ....remaining output omitted....
+&nbsp;&nbsp;&nbsp;&nbsp;*CONSTRUCTOR* 节包含用于构造函数/析构函数列表的数据。
 
-  
+&nbsp;&nbsp;&nbsp;&nbsp;*HAS_CONTENTS* 节不为空。
 
-The output is similar to info target, but with more details. Next 
-to the section names are the section flags, which are attributes 
-of a section. Here, we can see that the sections with LOAD flag 
-are from LOAD segment. The command can be combined with the 
-section flags for filtered outputs:
+&nbsp;&nbsp;&nbsp;&nbsp;*NEVER_LOAD* 是给链接器的指令，不会输出该节。
 
-  ALLOBJ displays sections for all loaded object files, including 
-  shared libraries. Shared libraries are only displayed when the 
-  program is already running.
+&nbsp;&nbsp;&nbsp;&nbsp;*COFF_SHARED_LIBRARY* 会通知链接器此节包含`COFF`共享库信息。`COFF`是一种对象文件格式，与`ELF`类似。`ELF`是可执行二进制文件的文件格式，而`COFF`是对象文件的文件格式。
 
-  section names displays only named sections. 
+&nbsp;&nbsp;&nbsp;&nbsp;*IS_COMMON* 节包含通用符号。
 
-  The command:
+示例6.2.5 用下面的命令，我们可以限制输出，只显示包含代码的节：
 
-    
+```bash
+(gdb) maint info sections CODE
+```
 
-    (gdb) maint info sections .text .data .bss
+输出是：
 
-    
-
-    only displays .text, .data and .bss sections:
-
-    
-
-    Exec file:
-
-        `/tmp/hello', file type elf64-x86-64.
-
-     [13]     0x00400430->0x004005c2 at 0x00000430: .text ALLOC 
-    LOAD READONLY CODE HAS_CONTENTS
-
-     [24]     0x00601028->0x00601038 at 0x00001028: .data ALLOC 
-    LOAD DATA HAS_CONTENTS
-
-     [25]     0x00601038->0x00601040 at 0x00001038: .bss ALLOC
-
-    
-
-  section-flags displays only sections with specified section 
-  flags. Note that these section flags are specific to gdb, 
-  though it is based on the section attributes defined 
-  previously. Currently, gdb understands the following flags:
-
-  ALLOC Section will have space allocated in the process when 
-    loaded. Set for all sections except those containing debug 
-    information. 
-
-  LOAD Section will be loaded from the file into the child 
-    process memory. Set for pre-initialized code and data, clear 
-    for .bss sections. 
-
-  RELOC Section needs to be relocated before loading. 
-
-  READONLY Section cannot be modified by the child process. 
-
-  CODE Section contains executable code only. 
-
-  DATA Section contains data only (no executable code). 
-
-  ROM Section will reside in ROM. 
-
-  CONSTRUCTOR Section contains data for constructor/destructor 
-    lists. 
-
-  HAS_CONTENTS Section is not empty. 
-
-  NEVER_LOAD An instruction to the linker to not output the 
-    section. 
-
-  COFF_SHARED_LIBRARY A notification to the linker that the 
-    section contains COFF shared library information. COFF is an 
-    object file format, similar to ELF. While ELF is the file 
-    format for an executable binary, COFF is the file format for 
-    an object file.
-
-  IS_COMMON Section contains common symbols.
-
-  We can restrict the output to only display sections that 
-  contain code with the command:
-
-    
-
-    (gdb) maint info sections CODE
-
-    
-
-    The output:
-
-    
-
-    Exec file:
-
-        `/tmp/hello', file type elf64-x86-64.
-
-     [10]     0x004003c8->0x004003e2 at 0x000003c8: .init ALLOC 
-    LOAD READONLY CODE HAS_CONTENTS
-
-     [11]     0x004003f0->0x00400420 at 0x000003f0: .plt ALLOC 
-    LOAD READONLY CODE HAS_CONTENTS
-
-     [12]     0x00400420->0x00400428 at 0x00000420: .plt.got 
-    ALLOC LOAD READONLY CODE HAS_CONTENTS
-
-     [13]     0x00400430->0x004005c2 at 0x00000430: .text ALLOC 
-    LOAD READONLY CODE HAS_CONTENTS
-
-     [14]     0x004005c4->0x004005cd at 0x000005c4: .fini ALLOC 
-    LOAD READONLY CODE HAS_CONTENTS
-
+```text
+Exec file:
+    `/tmp/hello', file type elf64-x86-64.
+  [10]     0x004003c8->0x004003e2 at 0x000003c8: .init ALLOC LOAD READONLY CODE HAS_CONTENTS
+  [11]     0x004003f0->0x00400420 at 0x000003f0: .plt ALLOC LOAD READONLY CODE HAS_CONTENTS
+  [12]     0x00400420->0x00400428 at 0x00000420: .plt.got ALLOC LOAD READONLY CODE HAS_CONTENTS
+  [13]     0x00400430->0x004005c2 at 0x00000430: .text ALLOC LOAD READONLY CODE HAS_CONTENTS
+  [14]     0x004005c4->0x004005cd at 0x000005c4: .fini ALLOC LOAD READONLY CODE HAS_CONTENTS
+```
     
 
   Command: info functions
