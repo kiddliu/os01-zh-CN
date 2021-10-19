@@ -206,362 +206,203 @@ Exec file:
   [13]     0x00400430->0x004005c2 at 0x00000430: .text ALLOC LOAD READONLY CODE HAS_CONTENTS
   [14]     0x004005c4->0x004005cd at 0x000005c4: .fini ALLOC LOAD READONLY CODE HAS_CONTENTS
 ```
-    
 
-  Command: info functions
+### 6.2.3 命令：`info functions`
 
-This command lists all function names and their loaded addresses. 
-The names can be filtered with a regular expression.
+这个命令列出了所有的函数名称以及它们的加载地址。我们可以用正则表达式来过滤这些名称。
 
-Run the command, we get the following output:
+示例6.2.6 执行命令，我们可以得到如下的输出：
 
+```bash
+(gdb) info functions
+```
+
+```text
+All defined functions:
+File hello.c:
+int main(int, char **);
+Non-debugging symbols:
+0x00000000004003c8  _init
+0x0000000000400400  puts@plt
+0x0000000000400410  __libc_start_main@plt
+0x0000000000400430  _start
+0x0000000000400460  deregister_tm_clones
+0x00000000004004a0  register_tm_clones
+0x00000000004004e0  __do_global_dtors_aux
+0x0000000000400500  frame_dummy
+0x0000000000400550  __libc_csu_init
+0x00000000004005c0  __libc_csu_fini
+0x00000000004005c4  _fini
+```
+
+### 6.2.3 命令：`info variables`
+
+这个命令列出了所有的全局变量和静态变量的名称，它们也可以用正则表达式进行过滤。
+
+示例6.2.7 如果我们在示例源程序中添加一个全局变量`int i`并重新编译，然后运行该命令，我们会得到以下输出：
+
+```bash
+(gdb) info variables
+```
   
+```text
+All defined variables:
+File hello.c:
+int i;
+Non-debugging symbols:
+0x00000000004005d0  _IO_stdin_used
+0x00000000004005e4  __GNU_EH_FRAME_HDR
+0x0000000000400708  __FRAME_END__
+0x0000000000600e10  __frame_dummy_init_array_entry
+0x0000000000600e10  __init_array_start
+0x0000000000600e18  __do_global_dtors_aux_fini_array_entry
+0x0000000000600e18  __init_array_end
+0x0000000000600e20  __JCR_END__
+0x0000000000600e20  __JCR_LIST__
+0x0000000000600e28  _DYNAMIC
+0x0000000000601000  _GLOBAL_OFFSET_TABLE_
+0x0000000000601028  __data_start
+0x0000000000601028  data_start
+0x0000000000601030  __dso_handle
+0x000000000060103c  __bss_start
+0x000000000060103c  _edata
+0x000000000060103c  completed
+0x0000000000601040  __TMC_END__
+0x0000000000601040  _end
+```
 
-  (gdb) info functions
+### 6.2.4 命令：`disassemble/disas`
 
+这个命令显示可执行文件的汇编代码。
+
+示例6.2.8 `gdb`可以显示一个函数的汇编代码：
+
+```bash
+(gdb) disassemble main
+```  
+
+```text
+Dump of assembler code for function main:
+    0x0804840b <+0>:  lea    ecx,[esp+0x4]
+    0x0804840f <+4>:  and    esp,0xfffffff0
+    0x08048412 <+7>:  push   DWORD PTR [ecx-0x4]
+    0x08048415 <+10>: push   ebp
+    0x08048416 <+11>: mov    ebp,esp
+    0x08048418 <+13>: push   ecx
+    0x08048419 <+14>: sub    esp,0x4
+    0x0804841c <+17>: sub    esp,0xc
+    0x0804841f <+20>: push   0x80484c0
+    0x08048424 <+25>: call   0x80482e0 <puts@plt>
+    0x08048429 <+30>: add    esp,0x10
+    0x0804842c <+33>: mov    eax,0x0
+    0x08048431 <+38>: mov    ecx,DWORD PTR [ebp-0x4]
+    0x08048434 <+41>: leave  
+    0x08048435 <+42>: lea    esp,[ecx-0x4]
+    0x08048438 <+45>: ret    
+End of assembler dump.
+```
+
+如果包含了源代码，这个命令会更有用：
+
+```bash
+(gdb) disassemble /s main
+```
+
+```text
+Dump of assembler code for function main:
+hello.c:
+4 {
+    0x0804840b <+0>:  lea     ecx,[esp+0x4]
+    0x0804840f <+4>:  and     esp,0xfffffff0
+    0x08048412 <+7>:  push    DWORD PTR [ecx-0x4]
+    0x08048415 <+10>: push   ebp
+    0x08048416 <+11>: mov    ebp,esp
+    0x08048418 <+13>: push   ecx
+    0x08048419 <+14>: sub    esp,0x4
+5     printf("Hello World!\n");
+    0x0804841c <+17>: sub    esp,0xc
+    0x0804841f <+20>: push   0x80484c0
+    0x08048424 <+25>: call   0x80482e0 <puts@plt>
+    0x08048429 <+30>: add    esp,0x10
+6     return 0;
+    0x0804842c <+33>: mov    eax,0x0
+7 }
+    0x08048431 <+38>: mov    ecx,DWORD PTR [ebp-0x4]
+    0x08048434 <+41>: leave  
+    0x08048435 <+42>: lea    esp,[ecx-0x4]
+    0x08048438 <+45>: ret    
+End of assembler dump.
+```
+
+这时，高阶的源代码（绿色文本）作为汇编的一部分被包含了进来。每一行代码下方都有对应的汇编代码。
+
+示例6.2.10 如果加上`/r`选项，十六进制的原始指令也会包含进来，就像`objdump`默认会显示汇编代码一样：
+
+```bash
+(gdb) disassemble /rs main
+```
   
-
+```text
+Dump of assembler code for function main:
+hello.c:
+4 {
+    0x0804840b <+0>:  8d 4c 24 04     lea    ecx,[esp+0x4]
+    0x0804840f <+4>:  83 e4 f0        and    esp,0xfffffff0
+    0x08048412 <+7>:  ff 71 fc        push   DWORD PTR [ecx-0x4]
+    0x08048415 <+10>: 55              push   ebp
+    0x08048416 <+11>: 89 e5           mov    ebp,esp
+    0x08048418 <+13>: 51              push   ecx
+    0x08048419 <+14>: 83 ec 04        sub    esp,0x4
+5     printf("Hello World!\n");
+    0x0804841c <+17>: 83 ec 0c        sub    esp,0xc
+    0x0804841f <+20>: 68 c0 84 04 08  push   0x80484c0
+    0x08048424 <+25>: e8 b7 fe ff ff  call   0x80482e0 <puts@plt>
+    0x08048429 <+30>: 83 c4 10        add    esp,0x10
+6     return 0;
+    0x0804842c <+33>: b8 00 00 00 00  mov    eax,0x0
+7 }
+    0x08048431 <+38>: 8b 4d fc        mov    ecx,DWORD PTR [ebp-0x4]
+    0x08048434 <+41>: c9              leave  
+    0x08048435 <+42>: 8d 61 fc        lea    esp,[ecx-0x4]
+    0x08048438 <+45>: c3              ret    
+End of assembler dump.
+```
   
-
-  All defined functions:
-
-  File hello.c:
-
-  int main(int, char **);
-
-  Non-debugging symbols:
-
-  0x00000000004003c8  _init
-
-  0x0000000000400400  puts@plt
-
-  0x0000000000400410  __libc_start_main@plt
-
-  0x0000000000400430  _start
-
-  0x0000000000400460  deregister_tm_clones
-
-  0x00000000004004a0  register_tm_clones
-
-  0x00000000004004e0  __do_global_dtors_aux
-
-  0x0000000000400500  frame_dummy
-
-  0x0000000000400550  __libc_csu_init
-
-  0x00000000004005c0  __libc_csu_fini
-
-  0x00000000004005c4  _fini
-
-  
-
-  Command: info variables
-
-This command lists all global and static variable names, or 
-filtered with a regular expression.
-
-If we add a global variable int i into the sample source program 
-and recompile then run the command, we get the following output:
-
-  
-
-  (gdb) info variables
-
-  
-
-  
-
-  All defined variables:
-
-  
-
-  File hello.c:
-
-  int i;
-
-  
-
-  Non-debugging symbols:
-
-  0x00000000004005d0  _IO_stdin_used
-
-  0x00000000004005e4  __GNU_EH_FRAME_HDR
-
-  0x0000000000400708  __FRAME_END__
-
-  0x0000000000600e10  __frame_dummy_init_array_entry
-
-  0x0000000000600e10  __init_array_start
-
-  0x0000000000600e18  __do_global_dtors_aux_fini_array_entry
-
-  0x0000000000600e18  __init_array_end
-
-  0x0000000000600e20  __JCR_END__
-
-  0x0000000000600e20  __JCR_LIST__
-
-  0x0000000000600e28  _DYNAMIC
-
-  0x0000000000601000  _GLOBAL_OFFSET_TABLE_
-
-  0x0000000000601028  __data_start
-
-  0x0000000000601028  data_start
-
-  0x0000000000601030  __dso_handle
-
-  0x000000000060103c  __bss_start
-
-  0x000000000060103c  _edata
-
-  0x000000000060103c  completed
-
-  0x0000000000601040  __TMC_END__
-
-  0x0000000000601040  _end
-
-  
-
-  Command: disassemble/disas
-
-This command displays the assembly code of the executable file. 
-
-gdb can display the assembly code of a function:
-
-  
-
-  (gdb) disassemble main
-
-  
-
-  
-
-  Dump of assembler code for function main:
-
-     0x0804840b <+0>: 	lea    ecx,[esp+0x4]
-
-     0x0804840f <+4>: 	and    esp,0xfffffff0
-
-     0x08048412 <+7>: 	push   DWORD PTR [ecx-0x4]
-
-     0x08048415 <+10>:	push   ebp
-
-     0x08048416 <+11>:	mov    ebp,esp
-
-     0x08048418 <+13>:	push   ecx
-
-     0x08048419 <+14>:	sub    esp,0x4
-
-     0x0804841c <+17>:	sub    esp,0xc
-
-     0x0804841f <+20>:	push   0x80484c0
-
-     0x08048424 <+25>:	call   0x80482e0 <puts@plt>
-
-     0x08048429 <+30>:	add    esp,0x10
-
-     0x0804842c <+33>:	mov    eax,0x0
-
-     0x08048431 <+38>:	mov    ecx,DWORD PTR [ebp-0x4]
-
-     0x08048434 <+41>:	leave  
-
-     0x08048435 <+42>:	lea    esp,[ecx-0x4]
-
-     0x08048438 <+45>:	ret    
-
-  End of assembler dump.
-
-  
-
-  It would be more useful if source is included:
-
-  
-
-  (gdb) disassemble /s main
-
-  
-
-  
-
-  Dump of assembler code for function main:
-
-  hello.c:
-
-  4	{
-
-     0x0804840b <+0>:	lea     ecx,[esp+0x4]
-
-     0x0804840f <+4>:	and     esp,0xfffffff0
-
-     0x08048412 <+7>:	push    DWORD PTR [ecx-0x4]
-
-     0x08048415 <+10>:	push   ebp
-
-     0x08048416 <+11>:	mov    ebp,esp
-
-     0x08048418 <+13>:	push   ecx
-
-     0x08048419 <+14>:	sub    esp,0x4
-
-  5	    printf("Hello World!\n");
-
-     0x0804841c <+17>:	sub    esp,0xc
-
-     0x0804841f <+20>:	push   0x80484c0
-
-     0x08048424 <+25>:	call   0x80482e0 <puts@plt>
-
-     0x08048429 <+30>:	add    esp,0x10
-
-  6	    return 0;
-
-     0x0804842c <+33>:	mov    eax,0x0
-
-  7	}
-
-     0x08048431 <+38>:	mov    ecx,DWORD PTR [ebp-0x4]
-
-     0x08048434 <+41>:	leave  
-
-     0x08048435 <+42>:	lea    esp,[ecx-0x4]
-
-     0x08048438 <+45>:	ret    
-
-  End of assembler dump.
-
-  
-
-  Now the high level source (in green text) is included as part 
-  of the assembly dump. Each line is backed by the corresponding 
-  assembly code below it. 
-
-
-
-If the option /r is added, raw instructions in hex are included, 
-just like how objdump displays assembly code by default:
-
-  
-
-  (gdb) disassemble /rs main
-
-  
-
-  
-
-  Dump of assembler code for function main:
-
-  hello.c:
-
-  4	{
-
-     0x0804840b <+0>:	 8d 4c 24 04	   lea    ecx,[esp+0x4]
-
-     0x0804840f <+4>:	 83 e4 f0	      and    esp,0xfffffff0
-
-     0x08048412 <+7>:	 ff 71 fc	      push   DWORD PTR [ecx-0x4]
-
-     0x08048415 <+10>:	55	  push   ebp
-
-     0x08048416 <+11>:	89 e5   mov    ebp,esp
-
-     0x08048418 <+13>:	51	  push   ecx
-
-     0x08048419 <+14>:	83 ec 04	      sub    esp,0x4
-
-  5	    printf("Hello World!\n");
-
-     0x0804841c <+17>:	83 ec 0c	      sub    esp,0xc
-
-     0x0804841f <+20>:	68 c0 84 04 08	push   0x80484c0
-
-     0x08048424 <+25>:	e8 b7 fe ff ff	call   0x80482e0 <puts@plt>
-
-     0x08048429 <+30>:	83 c4 10	      add    esp,0x10
-
-  6	    return 0;
-
-     0x0804842c <+33>:	b8 00 00 00 00	mov    eax,0x0
-
-  7	}
-
-     0x08048431 <+38>:	8b 4d fc	      mov    ecx,DWORD PTR 
-  [ebp-0x4]
-
-     0x08048434 <+41>:	c9	leave  
-
-     0x08048435 <+42>:	8d 61 fc	      lea    esp,[ecx-0x4]
-
-     0x08048438 <+45>:	c3	ret    
-
-  End of assembler dump.
-
-  
-
-  A function in a specific file can also be specified:
-
-  
-
-  (gdb) disassemble /sr 'hello.c'::main
-
-  
-
-  
-
-  Dump of assembler code for function main:
-
-  hello.c:
-
-  4	{
-
-     0x0804840b <+0>:	 8d 4c 24 04	  lea    ecx,[esp+0x4]
-
-     0x0804840f <+4>:	 83 e4 f0	     and    esp,0xfffffff0
-
-     0x08048412 <+7>:	 ff 71 fc	     push   DWORD PTR [ecx-0x4]
-
-     0x08048415 <+10>:	55	   push   ebp
-
-     0x08048416 <+11>:	89 e5	mov    ebp,esp
-
-     0x08048418 <+13>:	51	   push   ecx
-
-     0x08048419 <+14>:	83 ec 04	      sub    esp,0x4
-
-  5	    printf("Hello World!\n");
-
-     0x0804841c <+17>:	83 ec 0c	      sub    esp,0xc
-
-     0x0804841f <+20>:	68 c0 84 04 08	push   0x80484c0
-
-     0x08048424 <+25>:	e8 b7 fe ff ff	call   0x80482e0 <puts@plt>
-
-     0x08048429 <+30>:	83 c4 10	      add    esp,0x10
-
-  6	    return 0;
-
-     0x0804842c <+33>:	b8 00 00 00 00	mov    eax,0x0
-
-  7	}
-
-     0x08048431 <+38>:	8b 4d fc	      mov    ecx,DWORD PTR 
-  [ebp-0x4]
-
-     0x08048434 <+41>:	c9	leave  
-
-     0x08048435 <+42>:	8d 61 fc	      lea    esp,[ecx-0x4]
-
-     0x08048438 <+45>:	c3	ret    
-
-  End of assembler dump.
-
-  
-
-  The filename must be included in a single quote, and the 
-  function must be prefixed by double colons e.g. 'hello.c'::main 
-  to specify disassembling of the function main in the file 
-  hello.c.
+示例6.2.11 也可以指明输出某一个文件内的某个函数：
+
+```bash
+(gdb) disassemble /sr 'hello.c'::main
+```
+
+```text
+Dump of assembler code for function main:
+hello.c:
+4 {
+    0x0804840b <+0>:  8d 4c 24 04     lea    ecx,[esp+0x4]
+    0x0804840f <+4>:  83 e4 f0        and    esp,0xfffffff0
+    0x08048412 <+7>:  ff 71 fc        push   DWORD PTR [ecx-0x4]
+    0x08048415 <+10>: 55              push   ebp
+    0x08048416 <+11>: 89 e5           mov    ebp,esp
+    0x08048418 <+13>: 51              push   ecx
+    0x08048419 <+14>: 83 ec 04        sub    esp,0x4
+5     printf("Hello World!\n");
+    0x0804841c <+17>: 83 ec 0c        sub    esp,0xc
+    0x0804841f <+20>: 68 c0 84 04 08  push   0x80484c0
+    0x08048424 <+25>: e8 b7 fe ff ff  call   0x80482e0 <puts@plt>
+    0x08048429 <+30>: 83 c4 10        add    esp,0x10
+6     return 0;
+    0x0804842c <+33>: b8 00 00 00 00  mov    eax,0x0
+7 }
+    0x08048431 <+38>: 8b 4d fc        mov    ecx,DWORD PTR [ebp-0x4]
+    0x08048434 <+41>: c9              leave  
+    0x08048435 <+42>: 8d 61 fc        lea    esp,[ecx-0x4]
+    0x08048438 <+45>: c3              ret    
+End of assembler dump.
+```
+
+文件名必须包含在单引号中，且函数必须以双冒号为前缀，比如`'hello.c'::main`指定对文件`hello.c`中的函数`main`进行反汇编。
+
+176
 
   Command: x
 
