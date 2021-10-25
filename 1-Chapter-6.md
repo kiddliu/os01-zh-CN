@@ -402,306 +402,185 @@ End of assembler dump.
 
 文件名必须包含在单引号中，且函数必须以双冒号为前缀，比如`'hello.c'::main`指定对文件`hello.c`中的函数`main`进行反汇编。
 
-176
+### 6.2.6 命令：`x`
 
-  Command: x
+这个命令可以检查指定内存范围的内容。
 
-This command examines the content of a given memory range.
+示例6.2.12 我们可以检查`main`的原始内容：
 
-We can examine the raw content of main:
-
+```bash
+(gdb) x main
+```
   
+```text
+0x804840b <main>: 0x04244c8d
+```
 
-  (gdb) x main
+默认情况下，不带任何参数的这个命令只打印单个内存地址的内容。示例中，就只打印了`main`的起始内存地址。
 
-  
+示例6.2.13 有了格式参数，这个命令可以以特定的格式打印某个范围内的内存：
 
-  
+```bash
+(gdb) x/20b main
+```
 
-  0x804840b <main>:	0x04244c8d
+```text
+0x804840b <main>:     0x8d  0x4c  0x24  0x04  0x83  0xe4  0xf0  0xff
+0x8048413 <main+8>:   0x71  0xfc  0x55  0x89  0xe5  0x51  0x83  0xec
+0x804841b <main+16>:  0x04  0x83  0xec  0x0c
+```
 
-  
+`/20b main`参数意思是命令从`main`的位置开始打印20个字节
 
-  By default, without any argument, the command only prints the 
-  content of a single memory address. In this case, that is the 
-  starting memory address of main.
+格式参数的一般形式是：`/<repeated count><format letter>`
 
+如果没有提供重复计数，`gdb`默认提供的计数为`1`。格式字母可以是下列之一：
 
+| 字母 | 描述 |
+|-----|----- |
+| o | 以八进制格式打印内存里的内容。 |
+| x | 以十六进制格式打印内存里的内容。 |
+| d | 以十进制格式打印内存里的内容。 |
+| u | 以无符号十进制格式打印内存里的内容。 |
+| t | 以二进制格式打印内存里的内容。 |
+| f | 以浮点格式打印内存里的内容。 |
+| a | 以内存地址格式打印内存里的内容。 |
+| i | 以一系列汇编指令的格式打印内存里的内容。 |
+| c | 以ASCII码数组格式打印内存里的内容。 |
+| s | 以字符串格式打印内存里的内容。 |
 
-With format arguments, the command can print a range of memory in 
-a specific format.
+在不同的场景下，某些格式要比其他格式更有优势。如果一个内存区域包含的都是浮点数字，那么使用`f`格式要比把数字看成分离的单字节十六进制数字要好得多。
 
-  
+### 6.2.7 命令：`print/p`
 
-  (gdb) x/20b main
+检查原始内存是很有用的，然而通常情况下，最好可以有更容易被人阅读的输出。这个命令就是用来完成这个任务的：它可以完美输出一个表达式。表达式可以是一个全局变量，也可以是当前堆栈框架中的一个局部变量，还可以是一个函数、一个寄存器、一个数字等等。
 
-  
+## 6.3 程序的运行时检查
 
-  
+调试器的主要用途是在程序运行时检查它的状态。`gdb`提供了一套有用的命令来检索有用的运行时信息。
 
-  0x804840b <main>:	   0x8d	0x4c	0x24	0x04	0x83	0xe40xf0	0xff
+### 6.3.1 命令：`run`
 
-  0x8048413 <main+8>:	 0x71	0xfc	0x55	0x89	0xe5	0x510x83	0xec
+这个命令启动目标程序。
 
-  0x804841b <main+16>:	0x04	0x83	0xec	0x0c
+示例6.3.1 运行`hello`程序：
 
-  
+```bash
+(gdb) r
+```
 
-  /20b main argument means that the command prints 20 bytes, 
-  where main starts in memory.
+```text
+Starting program: /tmp/hello 
+Hello World!
+[Inferior 1 (process 1002) exited normally]
+```
 
-The general form for format argument is: /<repeated count><format 
-letter>
+程序成功运行，并打印出了“Hello World”的信息。然而，如果`gdb`能做的只是运行一个程序，那就没有什么用了。
 
-If the repeated count is not supplied, by default gdb supplies 
-the count as 1. The format letter is one of the following values:
+### 6.3.2 命令：`break/b`
 
+这个命令在高阶源代码的某个位置设置一个断点。当`gdb`运行到断点标记的特定位置时，它会停止执行，以便程序员检查程序的当前状态。
 
-+---------+-------------------------------------------------------------------------------------------------+
-| Letter  | Description                                                                                     |
-+---------+-------------------------------------------------------------------------------------------------+
-+---------+-------------------------------------------------------------------------------------------------+
-| o       | Print the memory content in octal format.                                                       |
-+---------+-------------------------------------------------------------------------------------------------+
-| x       | Print the memory content in hex format.                                                         |
-+---------+-------------------------------------------------------------------------------------------------+
-| d       | Print the memory content in decimal format.                                                     |
-+---------+-------------------------------------------------------------------------------------------------+
-| u       | Print the memory content in unsigned decimal format.                                            |
-+---------+-------------------------------------------------------------------------------------------------+
-| t       | Print the memory content in binary format.                                                      |
-+---------+-------------------------------------------------------------------------------------------------+
-| f       | Print the memory content in float format.                                                       |
-+---------+-------------------------------------------------------------------------------------------------+
-| a       | Print the memory content as memory addresses.                                                   |
-+---------+-------------------------------------------------------------------------------------------------+
-| i       | Print the memory content as a series of assembly instructions, 
-similar to disassemble command. |
-+---------+-------------------------------------------------------------------------------------------------+
-| c       | Print the memory content as an array of ASCII characters.                                       |
-+---------+-------------------------------------------------------------------------------------------------+
-| s       | Print the memory content as a string                                                            |
-+---------+-------------------------------------------------------------------------------------------------+
+示例6.3.2 断点可以设置在编辑器所显示的行上。假设我们想在程序的第3行设置一个断点，也就是`main`函数的开始位置：
 
+```c
+1 #include <stdio.h>
+2 
+3 int main(int argc, char *argv[])
+4 {
+5     printf("Hello World!\n");
+6     return 0;
+7 }
+```
 
-Depends on the circumstance, certain format is advantageous than 
-the others. For example, if a memory region contains 
-floating-point numbers, then it is better to use the format f 
-than viewing the number as separated 1-byte hex numbers.
+运行程序，`gdb`不是从头到尾运行，而是在第3行停下来：
 
-  Command: print/p
-
-Examining raw memory is useful but usually it is better to have a 
-more human-readable output. This command does precisely the task: 
-it pretty-prints an expression. An expression can be a global 
-variable, a local variable in current stack frame, a function, a 
-register, a number...
-
-  Runtime inspection of a program
-
-The main use of a debugger is to examine the state of a program, 
-when it is running. gdb provides a set of useful commands for 
-retrieving useful runtime information.
-
-  Command: run
-
-This command starts running the program.
-
-Run the hello program:
-
-  
-
-  (gdb) r
-
-  
-
-  
-
-  Starting program: /tmp/hello 
-
-  Hello World!
-
-  [Inferior 1 (process 1002) exited normally]
-
-  
-
-  The program runs successfully and printed the message “Hello 
-  World”. However, it would not be useful if all gdb can do is 
-  run a program.
-
-  Command: break/b
-
-This command sets a breakpoint at a location in the high-level 
-source code. When gdb runs to a specific location marked by a 
-breakpoint, it stops executing for a programmer to inspect the 
-current state of a program.
-
-A breakpoint can be set on a line as displayed by an editor. 
-Suppose we want to set a breakpoint at line 3 of the program, 
-which is the start of main function:
-
-  #include <stdio.h>
-
-
-
-@|\color{red}\bfseries int main(int argc, char *argv[])|@
-
-{
-
-    printf("Hello World!\n");
-
-    return 0;
-
-}
-
-  When running a program, instead of running from start to 
-  finish, gdb stopped at line 3:
-
-  
-
+```bash
   (gdb) b 3
-
+```
   
+```text
+Breakpoint 1 at 0x400535: file hello.c, line 3.
+```
 
+```bash
+(gdb) r
+```
+
+```bash
+Starting program: /tmp/hello 
+Breakpoint 1, main (argc=1, argv=0x7fffffffdfb8) at hello.c:5
+5     printf("Hello World!\n");
+```
+
+断点在第3行，但`gdb`停在第5行。原因是第3行不包含代码，而是一个函数签名；`gdb`只在它能执行代码的地方停止。函数中的代码从第5行开始，即对`printf`的调用，所以`gdb`在那里停止。
+
+示例6.3.3 代码的行号并不总是指定断点的可靠方法，因为源代码会改变。如果想要`gdb`总是停在`main`函数上该怎么办？在这种情况下，更好的方法是直接使用函数名：
+
+```bash
+b main
+```
+
+于是无论源代码如何变化，`gdb`总是停在主函数上。  
+
+示例6.3.4 有时，调试程序没有包含调试信息，或者`gdb`正在调试汇编代码。在这种情况下，可以指定一个内存地址作为停止点。为了得到这个函数地址，可以使用`print`命令:
+
+```bash
+(gdb) print main
+```
+
+```text
+$3 = {int (int, char **)} 0x400526 <main>
+```
+
+知道了`main`的地址，我们可以很容易地用内存地址设置一个断点：
+
+```bash
+b *0x400526
+```
   
+示例6.3.5 `gdb`还可以在任何源文件中设置断点。假设`hello`程序不是由单个文件而是由许多文件组成，例如`hello1.c`、`hello2.c`、`hello3.c`...在这种情况下，只需在行号前加上文件名：
 
-  Breakpoint 1 at 0x400535: file hello.c, line 3.
+```bash
+b hello.c:3
+```
 
-  
+示例6.3.6 也可以指定特定文件中的函数名：
 
-  
+```bash
+b hello.c:main
+```
 
-  (gdb) r
+### 6.3.3 命令：`next/n`
 
-  
+这个命令执行当前行，然后在下一行停止。如果当前行是一个函数调用，则单步执行它。
 
-  
+示例6.3.7 在`main`处设置断点后，运行一个程序并在第一个`printf`处停止:
 
-  Starting program: /tmp/hello 
+```bash
+(gdb) r
+```
 
-  Breakpoint 1, main (argc=1, argv=0x7fffffffdfb8) at hello.c:5
+```text
+Starting program: /tmp/hello 
+Breakpoint 1, main (argc=1, argv=0x7fffffffdfb8) at hello.c:5
+5     printf("Hello World!\n");
+```
 
-  5	    printf("Hello World!\n");
+接着，为了前进到下一个语句，我们使用`next`命令：
 
-  
+```bash
+(gdb) n
+```
 
-  The breakpoint is at line 3, but gdb stopped line 5. The reason 
-  is that line 3 does not contain code, but a function signature; 
-  gdb only stops where it can execute code. The code in the 
-  function starts at line 5, the call to printf, so gdb stops 
-  there.
+```text
+Hello World!
+6     return 0;
+```
 
+在输出中，第一行显示了执行第5行后产生的输出；然后，下一行显示了`gdb`当前停止的地方，也就是第6行。
 
-
-Line of code is not always the reliable way to specify a 
-breakpoint, as the source code can be changed. What if gdb should 
-always stop at main function? In this case, a better method is to 
-use the function name directly:
-
-  
-
-  b main
-
-  
-
-  Then, regardless of how the source code changes, gdb always 
-  stops at the main function.
-
-
-
-Sometimes, the debugging program does not contain debug info, or 
-gdb is debugging assembly code. In that case, a memory address 
-can be specified as a stop point. To get the function address, 
-print command can be used:
-
-  
-
-  (gdb) print main
-
-  
-
-  
-
-  $3 = {int (int, char **)} 0x400526 <main>
-
-  
-
-  Knowing the address of main, we can easily set a breakpoint 
-  with a memory address:
-
-  
-
-  b *0x400526
-
-  
-
-
-
-gdb can also set breakpoint in any source file. Suppose that 
-hello program is composed not just one file but many files e.g. 
-hello1.c, hello2.c, hello3.c... In that case, simply add the 
-filename before either a line number:
-
-  
-
-  b hello.c:3
-
-  
-
-
-
-A function name in a specific file can also be set:
-
-  
-
-  b hello.c:main
-
-  
-
-  Command: next/n
-
-This command executes the current line and stops at the next 
-line. When the current line is a function call, steps over it.
-
-After setting a breakpoint at main, run a program and stop at the 
-first printf:
-
-  
-
-  (gdb) r
-
-  
-
-  
-
-  Starting program: /tmp/hello 
-
-  Breakpoint 1, main (argc=1, argv=0x7fffffffdfb8) at hello.c:5
-
-  5	    printf("Hello World!\n");
-
-  
-
-  Then, to proceed to the next statement, we use the next 
-  command:
-
-  
-
-  (gdb) n
-
-  
-
-  
-
-  Hello World!
-
-  6	    return 0;
-
-  
-
-  In the output, the first line shows the output produced after 
-  executing line 5; then, the next line shows where gdb stops 
-  currently, which is line 6.
+181
 
   Command: step/s
 
