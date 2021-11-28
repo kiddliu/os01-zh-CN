@@ -580,536 +580,322 @@ Hello World!
 
 在输出中，第一行显示了执行第5行后产生的输出；然后，下一行显示了`gdb`当前停止的地方，也就是第6行。
 
-181
+### 6.3.4 命令：`step/s`
 
-  Command: step/s
+这个命令执行当前行，然后在下一行停止。如果当前行是一个函数调用，则进入该函数，在被调用函数的首行停止。
 
-This command executes the current line and stops at the next 
-line. When the current line is a function call, steps into it to 
-the first next line in the called function.
+示例6.3.8 假设我们有一个新的函数`add`<sup>为什么这里选择添加一个新的函数以及对应函数调用，而不是使用
+现成的`printf`？调试共享库函数是很棘手的：为了调试，必须安装、加载调试信息。为了演示这个简单的命令，不值得这么麻烦。</sup>：
 
-Suppose we have a new function add[footnote:
-Why should we add a new function and function call instead of 
-using the existing printf call? Stepping into shared library 
-functions is tricky because to make debugging works, the debug 
-info must be installed and loaded. It is not worth the trouble 
-for demonstrating this simple command.
-]:
-
-  #include <stdio.h>
-
-
+```c
+#include <stdio.h>
 
 int add(int a, int b) {
-
-	return a + b;
-
+    return a + b;
 }
 
-
-
-int main(int argc, char *argv[])
-
-{
-
-	add(1, 2);
-
+int main(int argc, char *argv[]) {
+    add(1, 2);
     printf("Hello World!\n");
-
     return 0;
-
 }
+```
 
-  If step command is used instead of next on the function call 
-  printf, gdb steps inside the function:
+如果在函数调用`printf`时使用`step`命令而不是`next`命令，`gdb`会步进到这个函数的内部：
 
+```bash
+(gdb) r
+```
+
+```text
+Starting program: /tmp/hello 
+Breakpoint 1, main (argc=1, argv=0xffffd154) at hello.c:11
+11    add(1, 2);
+```
+
+```bash
+(gdb) s
+```
+
+```text
+add (a=1, b=2) at hello.c:6
+6     return a + b;
+```
+
+在执行了命令`s`之后，`gdb`步入了`add`函数，它的第一条语句是返回语句。
+
+### 6.3.5 命令：`ni`
+
+本质上，`gdb`是在操作汇编指令。面向源代码的逐行调试只是一项改进，使得调试对程序员更友好。就如`objdump`和`disassemble`命令所演示的，Ｃ语言中的每条语句都转化为了一条或是多条汇编指令。借助可用的调试信息，`gdb`知道某几条指令属于同一行高阶代码；逐行调试只是在从当前行移到下一行时执行这一行的汇编指令。
+
+这个命令执行属于当前行的一条汇编指令。在当前行的所有汇编指令执行结束以前，`gdb`不会移动到下一行。如果当前指令是函数调用，则前进到下一条指令。
+
+示例6.3.9 当断点在`printf`调用上时使用`ni`命令，它将步入每条汇编指令：
+
+```bash
+(gdb) disassemble /s main
+```
   
+```text
+Dump of assembler code for function main:
+hello.c:
+4 {
+    0x0804840b <+0>:    lea    ecx,[esp+0x4]
+    0x0804840f <+4>:    and    esp,0xfffffff0
+    0x08048412 <+7>:    push   DWORD PTR [ecx-0x4]
+    0x08048415 <+10>:   push   ebp
+    0x08048416 <+11>:   mov    ebp,esp
+    0x08048418 <+13>:   push   ecx
+    0x08048419 <+14>:   sub    esp,0x4
+5     printf("Hello World!\n");
+    0x0804841c <+17>:   sub    esp,0xc
+    0x0804841f <+20>:   push   0x80484c0
+    0x08048424 <+25>:   call   0x80482e0 <puts@plt>
+    0x08048429 <+30>:   add    esp,0x10
+6     return 0;
+=>  0x0804842c <+33>:   mov    eax,0x0
+7 }
+    0x08048431 <+38>:   mov    ecx,DWORD PTR [ebp-0x4]
+    0x08048434 <+41>:   leave  
+    0x08048435 <+42>:   lea    esp,[ecx-0x4]
+    0x08048438 <+45>:   ret    
+End of assembler dump.
+```
 
-  (gdb) r
+```bash
+(gdb) r
+```
 
+```text
+Starting program: /tmp/hello 
+Breakpoint 1, main (argc=1, argv=0xffffd154) at hello.c:5
+5	    printf("Hello World!\n");
+```
+
+```bash
+(gdb) ni
+```
+
+```text
+0x0804841f  5     printf("Hello World!\n");
+```
+
+```bash
+(gdb) ni
+```
+
+```text
+0x08048424  5     printf("Hello World!\n");
+```
+
+```bash
+(gdb) ni
+```
+
+```text
+Hello World!
+0x08048429  5     printf("Hello World!\n");
+```
+
+```bash
+(gdb)
+```
+
+```text
+6     return 0;
+```
+
+进入`ni`后，`gdb`执行当前指令并显示下一条指令。这就是为什么在上边的输出中，`gdb`只显示了3个地址：`0x0804841f`、`0x08048424`和`0x08048429`。位于`0x0804841c`的指令，也就是`printf`的第一条指令之所以没有显示，是因为它是`gdb`停止的第一条指令。假设`gdb`在`printf`的第一条指令`0x0804841c`处停止，可以用`x`命令显示当前指令：
+
+```bash
+(gdb) x/i $eip
+```
+
+```text
+=> 0x804841c <main+17>: sub    esp,0xc
+```
+
+### 6.3.6 命令：`si`
+
+与`ni`相似，这个命令执行属于当前行的当前汇编指令。但如果当前指令是一个函数调用，则进入函数，准备执行被调用函数的第一条指令。
+
+示例6.3.10 回忆一下，从`printf`生成的汇编代码包含一条调用指令。
+
+```bash
+(gdb) disassemble /s main
+```
+
+```text
+Dump of assembler code for function main:
+hello.c:
+4 {
+    0x0804840b <+0>:  lea    ecx,[esp+0x4]
+    0x0804840f <+4>:  and    esp,0xfffffff0
+    0x08048412 <+7>:  push   DWORD PTR [ecx-0x4]
+    0x08048415 <+10>: push   ebp
+    0x08048416 <+11>: mov    ebp,esp
+    0x08048418 <+13>: push   ecx
+    0x08048419 <+14>: sub    esp,0x4
+5     printf("Hello World!\n");
+    0x0804841c <+17>: sub    esp,0xc
+    0x0804841f <+20>: push   0x80484c0
+    0x08048424 <+25>: call   0x80482e0 <puts@plt>
+    0x08048429 <+30>: add    esp,0x10
+6     return 0;
+=> 0x0804842c <+33>:  mov    eax,0x0
+7 }
+    0x08048431 <+38>: mov    ecx,DWORD PTR [ebp-0x4]
+    0x08048434 <+41>: leave  
+    0x08048435 <+42>: lea    esp,[ecx-0x4]
+    0x08048438 <+45>: ret    
+End of assembler dump.
+```
+
+我们再次尝试逐条指令的步进，但这次是在`0x08048424`处运行`si`，这是函数调用所在的位置：
+
+```bash
+(gdb) si
+```
+
+```text
+0x0804841f  5         printf("Hello World!\n");
+```
   
+```bash
+(gdb) si
+```
 
-  
+```text
+0x08048424  5         printf("Hello World!\n");
+```
 
-  Starting program: /tmp/hello 
+```bash
+(gdb) x/i $eip
+```
 
-  Breakpoint 1, main (argc=1, argv=0xffffd154) at hello.c:11
+```text
+=> 0x8048424 <main+25>:	call   0x80482e0 <puts@plt>
+```
 
-  11	    add(1, 2);
+```bash
+(gdb) si
+```
 
-  
+```text
+0x080482e0  in puts@plt ()
+```
 
-  
+紧接着`0x8048424`的下一条指令是`puts`函数的第一条指令，位于`0x080482e0`。换句话说，`gdb`步进到了`puts`函数，而不是跳过了它。
 
-  (gdb) s
+### 6.3.7 命令：`until`
 
-  
+这个命令持续执行，直到到达当前堆栈帧中超过当前行的行。
 
-  
+示例6.3.11 假设我们有一个函数，执行一个长循环：
 
-  add (a=1, b=2) at hello.c:6
-
-  6	    return a + b;
-
-  
-
-  After executing the command s, gdb stepped into the add 
-  function where the first statement is a return.
-
-  Command: ni
-
-At the core, gdb operates on assembly instruction. Source line by 
-line debugging is simply an enhancement to make it friendlier for 
-programmers. Each statement in C translates to one or more 
-assembly instruction, as shown with objdump and disassemble 
-command. With the debug info available, gdb knows how many 
-instructions belong to one line of high-level code; line by line 
-debugging is just a execution of assembly instructions of a line 
-when moving from the current line to the next.
-
-This command executes the one assembly instruction belongs to the 
-current line. Until all assembly instructions of the current line 
-are executed, gdb will not move to the next line. If the current 
-instruction is a call, step over it to the next instruction.
-
-When breakpoint is on the printf call and ni is used, it steps 
-through each assembly instruction:
-
-  
-
-  (gdb) disassemble /s main
-
-  
-
-  
-
-  Dump of assembler code for function main:
-
-  hello.c:
-
-  4	{
-
-     0x0804840b <+0>:	 lea    ecx,[esp+0x4]
-
-     0x0804840f <+4>:	 and    esp,0xfffffff0
-
-     0x08048412 <+7>:	 push   DWORD PTR [ecx-0x4]
-
-     0x08048415 <+10>:	push   ebp
-
-     0x08048416 <+11>:	mov    ebp,esp
-
-     0x08048418 <+13>:	push   ecx
-
-     0x08048419 <+14>:	sub    esp,0x4
-
-  5	    printf("Hello World!\n");
-
-     0x0804841c <+17>:	sub    esp,0xc
-
-     0x0804841f <+20>:	push   0x80484c0
-
-     0x08048424 <+25>:	call   0x80482e0 <puts@plt>
-
-     0x08048429 <+30>:	add    esp,0x10
-
-  6	    return 0;
-
-  => 0x0804842c <+33>:	mov    eax,0x0
-
-  7	}
-
-     0x08048431 <+38>:	mov    ecx,DWORD PTR [ebp-0x4]
-
-     0x08048434 <+41>:	leave  
-
-     0x08048435 <+42>:	lea    esp,[ecx-0x4]
-
-     0x08048438 <+45>:	ret    
-
-  End of assembler dump.
-
-  
-
-  
-
-  (gdb) r
-
-  
-
-  
-
-  Starting program: /tmp/hello 
-
-  Breakpoint 1, main (argc=1, argv=0xffffd154) at hello.c:5
-
-  5	    printf("Hello World!\n");
-
-  
-
-  
-
-  (gdb) ni
-
-  
-
-  
-
-  0x0804841f	5	    printf("Hello World!\n");
-
-  
-
-  
-
-  (gdb) ni
-
-  
-
-  
-
-  0x08048424	5	    printf("Hello World!\n");
-
-  
-
-  
-
-  (gdb) ni
-
-  
-
-  
-
-  Hello World!
-
-  0x08048429	5	    printf("Hello World!\n");
-
-  
-
-  
-
-  (gdb)
-
-  
-
-  
-
-  6	    return 0;
-
-  
-
-  Upon entering ni, gdb executes current instruction and display 
-  the next instruction. That's why from the output, gdb only 
-  displays 3 addresses: 0x0804841f, 0x08048424 and 0x08048429. 
-  The instruction at 0x0804841c, which is the first instruction 
-  of printf, is not displayed because it is the first instruction 
-  that gdb stopped at. Assume that gdb stopped at the first 
-  instruction of printf at 0x0804841c, the current instruction 
-  can be displayed using x command:
-
-  
-
-  (gdb) x/i $eip
-
-  
-
-  
-
-  => 0x804841c <main+17>: sub    esp,0xc
-
-  
-
-  Command: si
-
-Similar to ni, this command executes the current assembly 
-instruction belongs to the current line. But if the current 
-instruction is a call, step into it to the first next instruction 
-in the called function.
-
-Recall that the assembly code generated from printf contains a 
-call instruction:
-
-  
-
-  (gdb) disassemble /s main
-
-  
-
-  
-
-  Dump of assembler code for function main:
-
-  hello.c:
-
-  4	{
-
-     0x0804840b <+0>:	lea    ecx,[esp+0x4]
-
-     0x0804840f <+4>:	and    esp,0xfffffff0
-
-     0x08048412 <+7>:	push   DWORD PTR [ecx-0x4]
-
-     0x08048415 <+10>:	push   ebp
-
-     0x08048416 <+11>:	mov    ebp,esp
-
-     0x08048418 <+13>:	push   ecx
-
-     0x08048419 <+14>:	sub    esp,0x4
-
-  5	    printf("Hello World!\n");
-
-     0x0804841c <+17>:	sub    esp,0xc
-
-     0x0804841f <+20>:	push   0x80484c0
-
-     0x08048424 <+25>:	call   0x80482e0 <puts@plt>
-
-     0x08048429 <+30>:	add    esp,0x10
-
-  6	    return 0;
-
-  => 0x0804842c <+33>:	mov    eax,0x0
-
-  7	}
-
-     0x08048431 <+38>:	mov    ecx,DWORD PTR [ebp-0x4]
-
-     0x08048434 <+41>:	leave  
-
-     0x08048435 <+42>:	lea    esp,[ecx-0x4]
-
-     0x08048438 <+45>:	ret    
-
-  End of assembler dump.
-
-  
-
-  We try instruction by instruction stepping again, but this time 
-  by running si at 0x08048424, where call resides:
-
-  
-
-  (gdb) si
-
-  
-
-  
-
-  0x0804841f	5	        printf("Hello World!\n");
-
-  
-
-  
-
-  (gdb) si
-
-  
-
-  
-
-  0x08048424	5	        printf("Hello World!\n");
-
-  
-
-  
-
-  (gdb) x/i $eip
-
-  
-
-  
-
-  => 0x8048424 <main+25>:	call   0x80482e0 <puts@plt>
-
-  
-
-  
-
-  (gdb) si
-
-  
-
-  
-
-  0x080482e0 in puts@plt ()
-
-  
-
-  The next instruction right after 0x8048424 is the first 
-  instruction at 0x080482e0 in puts function. In other words, gdb 
-  stepped into puts instead of stepping over it.
-
-  Command: until
-
-This command executes until the next line is greater than the 
-current line.
-
-Suppose we have a function that execute a long loop:
-
-  #include <stdio.h>
-
-
+```c
+#include <stdio.h>
 
 int add1000() {
-
     int total = 0;
 
-
-
     for (int i = 0; i < 1000; ++i){
-
         total += i;
-
     }
-
-
 
     printf("Done adding!\n");
 
-
-
     return total;
-
 }
-
-
 
 int main(int argc, char *argv[])
-
 {
-
     add1000(1, 2);
-
     printf("Hello World!\n");
-
     return 0;
-
 }
+```
 
-  Using next command, we need to press 1000 times for finishing 
-  the loop. Instead, a faster way is to use until: 
+使用`next`命令，需要执行1000次完成这个循环。然而一个更快的方法是使用`until`：
 
+```bash
+(gdb) b add1000
+```
+
+```text  
+Breakpoint 1 at 0x8048411: file hello.c, line 4.
+```
+
+```bash
+(gdb) r
+```
+
+```text
+Starting program: /tmp/hello 
+Breakpoint 1, add1000 () at hello.c:4
+4     int total = 0;
+```
+
+```bash
+(gdb) until
+```
+
+```text
+5     for (int i = 0; i < 1000; ++i){
+```
+
+```bash
+(gdb) until
+```
+
+```text
+6         total += i;
+```
+
+```bash
+(gdb) until
+```
   
+```text
+5     for (int i = 0; i < 1000; ++i){
+```
 
-  (gdb) b add1000
+```bash
+(gdb) until
+```
 
-  
+```text
+8     printf("Done adding!\n");
+```
 
-  
+执行第一个`until`，`gdb`停在第5行，因为第5行比第4行大。
 
-  Breakpoint 1 at 0x8048411: file hello.c, line 4.
+执行第二个`until`，`gdb`在第6行停止，因为第6行比第5行大。
 
-  
+执行第三个`until`，`gdb`停在第5行，因为循环仍在继续。因为第5行小于第6行，在执行第四个`until`时，`gdb`一直执行到不再回到第5行，并在第8行停止。这是一个跳过循环的好方法，而不是去设置不必要的断点。
 
-  
+示例6.3.12 可以提供`until`一个参数来明确地执行到某个特定的行。
 
-  (gdb) r
+```bash
+(gdb) r
+```
 
-  
+```text
+Starting program: /tmp/hello 
+Breakpoint 1, add1000 () at hello.c:4
+4     int total = 0;
+```
 
-  
+```bash
+(gdb) until 8
+```
 
-  Starting program: /tmp/hello 
+```text
+add1000 () at hello.c:8
+8     printf("Done adding!\n");
+```
 
-  Breakpoint 1, add1000 () at hello.c:4
-
-  4	    int total = 0;
-
-  
-
-  
-
-  (gdb) until
-
-  
-
-  
-
-  5	    for (int i = 0; i < 1000; ++i){
-
-  
-
-  
-
-  (gdb) until
-
-  
-
-  
-
-  6	        total += i;
-
-  
-
-  
-
-  (gdb) until
-
-  
-
-  
-
-  5	    for (int i = 0; i < 1000; ++i){
-
-  
-
-  
-
-  (gdb) until
-
-  
-
-  
-
-  8	    printf("Done adding!\n");
-
-  
-
-  Executing the first until, gdb stopped at line 5 since line 5 
-  is greater than line 4. 
-
-  Executing the second until, gdb stopped at line 6 since line 6 
-  is greater than line 5.
-
-  Executing the third until, gdb stopped at line 5 since the loop 
-  still continues. Because line 5 is less than line 6, with the 
-  fourth until, gdb kept executing until it does not go back to 
-  line 5 anymore and stopped at line 8. This is a great way to 
-  skip over loop in the middle, instead of setting unneeded 
-  breakpoint.
-
-  until can be supplied with an argument to explicitly execute to 
-  a specific line:
-
-  
-
-  (gdb) r
-
-  
-
-  
-
-  Starting program: /tmp/hello 
-
-  Breakpoint 1, add1000 () at hello.c:4
-
-  4	    int total = 0;
-
-  
-
-  
-
-  (gdb) until 8
-
-  
-
-  
-
-  add1000 () at hello.c:8
-
-  8	    printf("Done adding!\n");
-
-  
+189
 
   Command: finish
 
